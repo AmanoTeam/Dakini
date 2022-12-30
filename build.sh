@@ -164,7 +164,7 @@ for target in "${targets[@]}"; do
 		--enable-plugin \
 		--enable-shared \
 		--enable-threads='posix' \
-		--disable-libssp \
+		--enable-libssp \
 		--disable-libstdcxx-pch \
 		--disable-werror \
 		--enable-languages='c,c++' \
@@ -176,8 +176,8 @@ for target in "${targets[@]}"; do
 	
 	LD_LIBRARY_PATH="${toolchain_directory}/lib" PATH="${PATH}:${toolchain_directory}/bin" make CFLAGS_FOR_TARGET='-fno-stack-protector' CXXFLAGS_FOR_TARGET='-fno-stack-protector' all --jobs="$(nproc)"
 	make install
+	
+	rm --recursive "${toolchain_directory}/lib/gcc/${triple}/12.2.0/include-fixed"
 done
-
-rm --recursive "${toolchain_directory}/lib/gcc/${triple}/12.2.0/include-fixed"
 
 tar --directory="$(dirname "${toolchain_directory}")" --create --file=- "$(basename "${toolchain_directory}")" |  xz --threads=0 --compress -9 > "${toolchain_tarball}"
