@@ -46,7 +46,7 @@ if ! [ -f "${gcc_tarball}" ]; then
 fi
 
 while read file; do
-	sed -i 's/-O2/-Wno-unused-command-line-argument -Os -flto -s -DNDEBUG/g' "${file}"
+	sed -i 's/-O2/-Wno-unused-command-line-argument -Os -s -DNDEBUG/g' "${file}"
 done <<< "$(find '/tmp' -type 'f' -regex '.*configure')"
 
 [ -d "${gcc_directory}/build" ] || mkdir "${gcc_directory}/build"
@@ -98,6 +98,14 @@ sed -i 's/#include <stdint.h>/#include <stdint.h>\n#include <stdio.h>/g' "${tool
 declare -r targets=(
 	'amd64'
 	'i386'
+	'emips'
+	'alpha'
+	'hppa'
+	'sparc'
+	'sparc64'
+	'vax'
+	'hpcsh'
+	'evbppc'
 )
 
 for target in "${targets[@]}"; do
@@ -110,6 +118,38 @@ for target in "${targets[@]}"; do
 			declare comp_url="${url}/comp.tar.xz";;
 		i386)
 			declare triple='i386-unknown-netbsdelf'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		emips)
+			declare triple='mips-unknown-netbsd'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		alpha)
+			declare triple='alpha-unknown-netbsd'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		hppa)
+			declare triple='hppa-unknown-netbsd'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		sparc)
+			declare triple='sparc-unknown-netbsdelf'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		sparc64)
+			declare triple='sparc64-unknown-netbsd'
+			declare base_url="${url}/base.tar.xz"
+			declare comp_url="${url}/comp.tar.xz";;
+		vax)
+			declare triple='vax-unknown-netbsdelf'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		hpcsh)
+			declare triple='shle-unknown-netbsdelf'
+			declare base_url="${url}/base.tgz"
+			declare comp_url="${url}/comp.tgz";;
+		evbppc)
+			declare triple='powerpc-unknown-netbsd'
 			declare base_url="${url}/base.tgz"
 			declare comp_url="${url}/comp.tgz";;
 	esac
@@ -140,6 +180,16 @@ for target in "${targets[@]}"; do
 	
 	rm --force --recursive ./*
 	
+	declare extra_configure_flags=''
+	
+	if [ "${target}" != 'hppa' ]; then
+		extra_configure_flags+='--enable-gnu-unique-object '
+	fi
+	
+	if [ "${target}" == 'emips' ]; then
+		extra_configure_flags+='--with-float=soft '
+	fi
+	
 	../configure \
 		--target="${triple}" \
 		--prefix="${toolchain_directory}" \
@@ -155,7 +205,6 @@ for target in "${targets[@]}"; do
 		--enable-clocale='gnu' \
 		--enable-default-ssp \
 		--enable-gnu-indirect-function \
-		--enable-gnu-unique-object \
 		--enable-libstdcxx-backtrace \
 		--enable-link-serialization='1' \
 		--enable-linker-build-id \
@@ -174,7 +223,8 @@ for target in "${targets[@]}"; do
 		--enable-ld \
 		--enable-gold \
 		--with-sysroot="${toolchain_directory}/${triple}" \
-		--with-native-system-header-dir='/include'
+		--with-native-system-header-dir='/include' \
+		${extra_configure_flags}
 	
 	LD_LIBRARY_PATH="${toolchain_directory}/lib" PATH="${PATH}:${toolchain_directory}/bin" make CFLAGS_FOR_TARGET='-fno-stack-protector' CXXFLAGS_FOR_TARGET='-fno-stack-protector' all --jobs="$(nproc)"
 	make install
