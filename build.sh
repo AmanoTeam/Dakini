@@ -3,7 +3,9 @@
 set -e
 set -u
 
-declare -r toolchain_tarball="$(pwd)/netbsd-cross.tar.xz"
+declare -r revision="$(git rev-parse --short HEAD)"
+
+declare -r toolchain_tarball="${PWD}/netbsd-cross.tar.xz"
 
 declare -r gmp_tarball='/tmp/gmp.tar.xz'
 declare -r gmp_directory='/tmp/gmp-6.2.1'
@@ -19,6 +21,8 @@ declare -r binutils_directory='/tmp/binutils-2.40'
 
 declare -r gcc_tarball='/tmp/gcc.tar.xz'
 declare -r gcc_directory='/tmp/gcc-12.2.0'
+
+declare -r cflags='-Os -s -DNDEBUG'
 
 if ! [ -f "${gmp_tarball}" ]; then
 	wget --no-verbose 'https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz' --output-document="${gmp_tarball}"
@@ -46,8 +50,8 @@ if ! [ -f "${gcc_tarball}" ]; then
 fi
 
 while read file; do
-	sed -i 's/-O2/-Wno-unused-command-line-argument -Os -s -DNDEBUG/g' "${file}"
-done <<< "$(find '/tmp' -type 'f' -regex '.*configure')"
+	sed -i "s/-O2/${cflags}/g" "${file}"
+done <<< "$(find '/tmp' -type 'f' -wholename '*configure')"
 
 [ -d "${gcc_directory}/build" ] || mkdir "${gcc_directory}/build"
 
@@ -109,50 +113,33 @@ declare -r targets=(
 )
 
 for target in "${targets[@]}"; do
-	declare url="https://cdn.netbsd.org/pub/NetBSD/NetBSD-9.3/${target}/binary/sets"
+	declare url="https://cdn.netbsd.org/pub/NetBSD/NetBSD-8.0/${target}/binary/sets"
 	
 	case "${target}" in
 		amd64)
-			declare triple='x86_64-unknown-netbsd'
-			declare base_url="${url}/base.tar.xz"
-			declare comp_url="${url}/comp.tar.xz";;
+			declare triple='x86_64-unknown-netbsd';;
 		i386)
-			declare triple='i386-unknown-netbsdelf'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='i386-unknown-netbsdelf';;
 		emips)
-			declare triple='mips-unknown-netbsd'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='mips-unknown-netbsd';;
 		alpha)
-			declare triple='alpha-unknown-netbsd'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='alpha-unknown-netbsd';;
 		hppa)
-			declare triple='hppa-unknown-netbsd'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='hppa-unknown-netbsd';;
 		sparc)
-			declare triple='sparc-unknown-netbsdelf'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='sparc-unknown-netbsdelf';;
 		sparc64)
-			declare triple='sparc64-unknown-netbsd'
-			declare base_url="${url}/base.tar.xz"
-			declare comp_url="${url}/comp.tar.xz";;
+			declare triple='sparc64-unknown-netbsd';;
 		vax)
-			declare triple='vax-unknown-netbsdelf'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='vax-unknown-netbsdelf';;
 		hpcsh)
-			declare triple='shle-unknown-netbsdelf'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='shle-unknown-netbsdelf';;
 		evbppc)
-			declare triple='powerpc-unknown-netbsd'
-			declare base_url="${url}/base.tgz"
-			declare comp_url="${url}/comp.tgz";;
+			declare triple='powerpc-unknown-netbsd';;
 	esac
+	
+	declare base_url="${url}/base.tgz"
+	declare comp_url="${url}/comp.tgz"
 	
 	declare base_output="/tmp/$(basename "${base_url}")"
 	declare comp_output="/tmp/$(basename "${comp_url}")"
@@ -193,12 +180,12 @@ for target in "${targets[@]}"; do
 	../configure \
 		--target="${triple}" \
 		--prefix="${toolchain_directory}" \
-		--with-linker-hash-style='gnu' \
+		--with-linker-hash-style='sysv' \
 		--with-gmp="${toolchain_directory}" \
 		--with-mpc="${toolchain_directory}" \
 		--with-mpfr="${toolchain_directory}" \
 		--with-system-zlib \
-		--with-bugurl='https://github.com/AmanoTeam/NetBSD-Cross/issues' \
+		--with-bugurl='https://github.com/AmanoTeam/n3tbsdcr0ss/issues' \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
@@ -217,19 +204,21 @@ for target in "${targets[@]}"; do
 		--disable-libstdcxx-pch \
 		--disable-werror \
 		--enable-languages='c,c++' \
-		--disable-libgomp \
 		--disable-bootstrap \
 		--without-headers \
 		--enable-ld \
 		--enable-gold \
+		--with-pic \
+		--with-gcc-major-version-only \
+		--with-pkgversion="n3tbsdcr0ss v0.1-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triple}" \
 		--with-native-system-header-dir='/include' \
 		${extra_configure_flags}
 	
-	LD_LIBRARY_PATH="${toolchain_directory}/lib" PATH="${PATH}:${toolchain_directory}/bin" make CFLAGS_FOR_TARGET='-fno-stack-protector' CXXFLAGS_FOR_TARGET='-fno-stack-protector' all --jobs="$(nproc)"
+	LD_LIBRARY_PATH="${toolchain_directory}/lib" PATH="${PATH}:${toolchain_directory}/bin" make CFLAGS_FOR_TARGET="${cflags}" CXXFLAGS_FOR_TARGET="${cflags}" all --jobs="$(nproc)"
 	make install
 	
-	rm --recursive "${toolchain_directory}/lib/gcc/${triple}/12.2.0/include-fixed"
+	rm --recursive "${toolchain_directory}/lib/gcc/${triple}/12/include-fixed"
 done
 
 tar --directory="$(dirname "${toolchain_directory}")" --create --file=- "$(basename "${toolchain_directory}")" |  xz --threads=0 --compress -9 > "${toolchain_tarball}"
