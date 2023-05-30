@@ -184,16 +184,6 @@ for target in "${targets[@]}"; do
 	tar --directory="${toolchain_directory}/${triple}" --extract --file="${base_output}"  './lib'
 	tar --directory="${toolchain_directory}/${triple}" --strip=2 --extract --file="${comp_output}" './usr/lib' './usr/include'
 	
-	cd "${toolchain_directory}/${triple}/lib"
-	
-	while read filename; do
-		if [[ "${filename}" =~ ^lib(pthread|resolv|rt|c|m|util)\.(so|a).* || "${filename}" =~ ^.*\.o$ ]]; then
-			continue
-		fi
-		
-		rm --recursive "${filename}"
-	done <<< "$(ls)"
-	
 	cd "${gcc_directory}/build"
 	
 	rm --force --recursive ./*
