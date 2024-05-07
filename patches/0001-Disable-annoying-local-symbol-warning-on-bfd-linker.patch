@@ -1,0 +1,41 @@
+From d3254de82bf38235c4e714440a93454f91cd71d8 Mon Sep 17 00:00:00 2001
+From: Kartatz <105828205+Kartatz@users.noreply.github.com>
+Date: Fri, 10 May 2024 05:12:10 +0200
+Subject: [PATCH] Disable annoying 'local symbol' warning on bfd linker
+
+---
+ bfd/elflink.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/bfd/elflink.c b/bfd/elflink.c
+index c2494b3..6910577 100644
+--- a/bfd/elflink.c
++++ b/bfd/elflink.c
+@@ -4820,7 +4820,7 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
+       bool common;
+       bool discarded;
+       unsigned int old_alignment;
+-      unsigned int shindex;
++      /* unsigned int shindex; */
+       bfd *old_bfd;
+       bool matched;
+ 
+@@ -4852,13 +4852,14 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
+ 	  /* If we aren't prepared to handle locals within the globals
+ 	     then we'll likely segfault on a NULL symbol hash if the
+ 	     symbol is ever referenced in relocations.  */
++	  /*
+ 	  shindex = elf_elfheader (abfd)->e_shstrndx;
+ 	  name = bfd_elf_string_from_elf_section (abfd, shindex, hdr->sh_name);
+ 	  _bfd_error_handler (_("%pB: %s local symbol at index %lu"
+ 				" (>= sh_info of %lu)"),
+ 			      abfd, name, (long) (isym - isymbuf + extsymoff),
+ 			      (long) extsymoff);
+-
++	  */
+ 	  /* Dynamic object relocations are not processed by ld, so
+ 	     ld won't run into the problem mentioned above.  */
+ 	  if (dynamic)
+-- 
+2.36.6
+

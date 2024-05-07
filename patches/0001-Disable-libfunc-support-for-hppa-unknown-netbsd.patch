@@ -1,0 +1,25 @@
+From 615edd6d30f1e43107b639d13661be148e197471 Mon Sep 17 00:00:00 2001
+From: Kartatz <105828205+Kartatz@users.noreply.github.com>
+Date: Tue, 7 May 2024 23:43:09 +0200
+Subject: [PATCH] Disable libfunc support for hppa-unknown-netbsd
+
+For some reason, it does not work for that target. The following error is printed when attempting to link a specific object file of the libgcc:
+
+/tmp/ccigQ6Ux.s: Assembler messages:
+/tmp/ccigQ6Ux.s:80: Error: Unknown opcode: `stws|stw %r23,-16(%sp)'
+/tmp/ccigQ6Ux.s:83: Error: Invalid operands
+
+I do not know if this is a GCC bug or it just happens that our target does not support this feature.
+---
+diff --git a/libgcc/config/pa/t-netbsd b/libgcc/config/pa/t-netbsd
+index 13943940a..8b99068ce 100644
+--- a/libgcc/config/pa/t-netbsd
++++ b/libgcc/config/pa/t-netbsd
+@@ -7,4 +7,3 @@ LIB1ASMFUNCS = _divI _divU _remI _remU _div_const _mulI _dyncall
+ HOST_LIBGCC2_CFLAGS += -DELF=1 -DLINUX=1
+ 
+ LIB2ADD = $(srcdir)/config/pa/fptr.c
+-LIB2ADD_ST = $(srcdir)/config/pa/sync-libfuncs.c
+-- 
+2.36.6
+

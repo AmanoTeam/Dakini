@@ -2,29 +2,71 @@
 
 set -eu
 
+declare -r workdir="${PWD}"
+
 declare -r revision="$(git rev-parse --short HEAD)"
 
-declare -r toolchain_tarball="${PWD}/netbsd-cross.tar.xz"
-
 declare -r gmp_tarball='/tmp/gmp.tar.xz'
-declare -r gmp_directory='/tmp/gmp-6.2.1'
+declare -r gmp_directory='/tmp/gmp-6.3.0'
 
 declare -r mpfr_tarball='/tmp/mpfr.tar.xz'
-declare -r mpfr_directory='/tmp/mpfr-4.2.0'
+declare -r mpfr_directory='/tmp/mpfr-4.2.1'
 
 declare -r mpc_tarball='/tmp/mpc.tar.gz'
 declare -r mpc_directory='/tmp/mpc-1.3.1'
 
 declare -r binutils_tarball='/tmp/binutils.tar.xz'
-declare -r binutils_directory='/tmp/binutils-2.41'
+declare -r binutils_directory='/tmp/binutils-2.42'
 
-declare -r gcc_tarball='/tmp/gcc.tar.xz'
-declare -r gcc_directory='/tmp/gcc-12.3.0'
+declare gcc_directory=''
+
+function setup_gcc_source() {
+	
+	local gcc_version=''
+	local gcc_url=''
+	local gcc_tarball=''
+	local tgt="${1}"
+	
+	declare -r tgt
+	
+	if [ "${tgt}" = 'hpcsh' ] || [ "${tgt}" = 'emips' ]; then
+		gcc_version='12'
+		gcc_directory='/tmp/gcc-12.3.0'
+		gcc_url='https://ftp.gnu.org/gnu/gcc/gcc-12.3.0/gcc-12.3.0.tar.xz'
+	else
+		gcc_version='14'
+		gcc_directory='/tmp/gcc-14.1.0'
+		gcc_url='https://ftp.gnu.org/gnu/gcc/gcc-14.1.0/gcc-14.1.0.tar.xz'
+	fi
+	
+	gcc_tarball="/tmp/gcc-${gcc_version}.tar.xz"
+	
+	declare -r gcc_version
+	declare -r gcc_url
+	declare -r gcc_tarball
+	
+	if ! [ -f "${gcc_tarball}" ]; then
+		wget --no-verbose "${gcc_url}" --output-document="${gcc_tarball}"
+		tar --directory="$(dirname "${gcc_directory}")" --extract --file="${gcc_tarball}"
+	fi
+	
+	[ -d "${gcc_directory}/build" ] || mkdir "${gcc_directory}/build"
+	
+	if ! [ -f "${gcc_directory}/patched" ]; then
+		if (( gcc_version >= 14 )); then
+			patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-libfunc-support-for-hppa-unknown-netbsd.patch"
+			patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Fix-issues-with-fenv.patch"
+		fi
+		
+		touch "${gcc_directory}/patched"
+	fi
+	
+}
 
 declare -r optflags='-Os'
 declare -r linkflags='-Wl,-s'
 
-declare -r max_jobs="$(($(nproc) * 8))"
+declare -r max_jobs="$(($(nproc) * 17))"
 
 declare build_type="${1}"
 
@@ -49,12 +91,12 @@ if ! (( is_native )); then
 fi
 
 if ! [ -f "${gmp_tarball}" ]; then
-	wget --no-verbose 'https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz' --output-document="${gmp_tarball}"
+	wget --no-verbose 'https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz' --output-document="${gmp_tarball}"
 	tar --directory="$(dirname "${gmp_directory}")" --extract --file="${gmp_tarball}"
 fi
 
 if ! [ -f "${mpfr_tarball}" ]; then
-	wget --no-verbose 'https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.xz' --output-document="${mpfr_tarball}"
+	wget --no-verbose 'https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.1.tar.xz' --output-document="${mpfr_tarball}"
 	tar --directory="$(dirname "${mpfr_directory}")" --extract --file="${mpfr_tarball}"
 fi
 
@@ -64,16 +106,12 @@ if ! [ -f "${mpc_tarball}" ]; then
 fi
 
 if ! [ -f "${binutils_tarball}" ]; then
-	wget --no-verbose 'https://ftp.gnu.org/gnu/binutils/binutils-2.41.tar.xz' --output-document="${binutils_tarball}"
+	wget --no-verbose 'https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz' --output-document="${binutils_tarball}"
 	tar --directory="$(dirname "${binutils_directory}")" --extract --file="${binutils_tarball}"
+	
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-annoying-local-symbol-warning-on-bfd-linker.patch"
 fi
-
-if ! [ -f "${gcc_tarball}" ]; then
-	wget --no-verbose 'https://ftp.gnu.org/gnu/gcc/gcc-12.3.0/gcc-12.3.0.tar.xz' --output-document="${gcc_tarball}"
-	tar --directory="$(dirname "${gcc_directory}")" --extract --file="${gcc_tarball}"
-fi
-
-[ -d "${gcc_directory}/build" ] || mkdir "${gcc_directory}/build"
 
 declare -r toolchain_directory="/tmp/dakini"
 
@@ -135,20 +173,20 @@ sed -i 's/#include <stdint.h>/#include <stdint.h>\n#include <stdio.h>/g' "${tool
 [ -d "${binutils_directory}/build" ] || mkdir "${binutils_directory}/build"
 
 declare -r targets=(
+	'hpcsh'
+	'vax'
+	'emips'
+	'evbppc'
 	'hppa'
 	'amd64'
 	'i386'
-	'emips'
 	'alpha'
 	'sparc'
 	'sparc64'
-	'vax'
-	'hpcsh'
-	'evbppc'
 )
 
 for target in "${targets[@]}"; do
-	declare url="https://cdn.netbsd.org/pub/NetBSD/NetBSD-8.0/${target}/binary/sets"
+	declare url="https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-8.0/${target}/binary/sets"
 	
 	case "${target}" in
 		amd64)
@@ -179,8 +217,27 @@ for target in "${targets[@]}"; do
 	declare base_output="/tmp/$(basename "${base_url}")"
 	declare comp_output="/tmp/$(basename "${comp_url}")"
 	
-	wget --no-verbose "${base_url}" --output-document="${base_output}"
-	wget --no-verbose "${comp_url}" --output-document="${comp_output}"
+	curl \
+		--url "${base_url}" \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--verbose \
+		--silent \
+		--output "${base_output}"
+	
+	curl \
+		--url "${comp_url}" \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--verbose \
+		--silent \
+		--output "${comp_output}"
 	
 	cd "${binutils_directory}/build"
 	rm --force --recursive ./*
@@ -199,12 +256,23 @@ for target in "${targets[@]}"; do
 		CXXFLAGS="${optflags}" \
 		LDFLAGS="${linkflags}"
 	
-	make all --jobs="${max_jobs}"
+	make all --jobs
 	make install
 	
 	tar --directory="${toolchain_directory}/${triplet}" --strip=2 --extract --file="${base_output}" './usr/lib' './usr/include'
 	tar --directory="${toolchain_directory}/${triplet}" --extract --file="${base_output}"  './lib'
 	tar --directory="${toolchain_directory}/${triplet}" --strip=2 --extract --file="${comp_output}" './usr/lib' './usr/include'
+	
+	# Update permissions
+	while read name; do
+		if [ -f "${name}" ]; then
+			chmod 644 "${name}"
+		elif [ -d "${name}" ]; then
+			chmod 755 "${name}"
+		fi
+	done <<< "$(find "${toolchain_directory}/${triplet}/include" "${toolchain_directory}/${triplet}/lib")"
+	
+	setup_gcc_source "${target}"
 	
 	cd "${gcc_directory}/build"
 	
@@ -236,7 +304,7 @@ for target in "${targets[@]}"; do
 		--with-mpfr="${toolchain_directory}" \
 		--with-bugurl='https://github.com/AmanoTeam/Dakini/issues' \
 		--with-gcc-major-version-only \
-		--with-pkgversion="Dakini v0.4-${revision}" \
+		--with-pkgversion="Dakini v0.5-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
 		--enable-__cxa_atexit \
@@ -287,4 +355,30 @@ for target in "${targets[@]}"; do
 	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1"
 	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1plus"
 	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/lto1"
+	
+	# Strip debug symbols from shared libraries
+	while read name; do
+		name="$(realpath "${name}")"
+		
+		if [[ "$(file --brief --mime-type "${name}")" != 'application/x-sharedlib' ]]; then
+			continue
+		fi
+		
+		if (( is_native )); then
+			"${toolchain_directory}/bin/${triplet}-strip" "${name}"
+		else
+			"${DAKINI_HOME}/bin/${triplet}-strip" "${name}"
+		fi
+	done <<< "$(find "${toolchain_directory}/${triplet}/lib" -wholename '*.so')"
+	
+	# Fix some libraries not being found during linkage
+	if [ "${target}" == 'hpcsh' ]; then
+		cd "${toolchain_directory}/${triplet}/lib"
+		
+		for name in $(ls '!m3'); do
+			if ! [ -f "./${name}" ]; then
+				ln --symbolic './!m3/'"${name}" "./${name}"
+			fi
+		done
+	fi
 done
