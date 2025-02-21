@@ -1,0 +1,528 @@
+From 45a44f960c076037a35687954f70ca083fe5ff59 Mon Sep 17 00:00:00 2001
+From: Kartatz <105828205+Kartatz@users.noreply.github.com>
+Date: Mon, 8 Dec 2025 21:01:19 -0300
+Subject: [PATCH] GCC 15
+
+https://github.com/NetBSD/pkgsrc/tree/trunk/lang/gcc15/patches
+---
+ configure                              |  4 +--
+ configure.ac                           |  4 +--
+ gcc/config.gcc                         |  1 +
+ gcc/config.host                        |  2 +-
+ gcc/config/aarch64/aarch64-netbsd.h    |  4 +++
+ gcc/config/arm/arm.h                   | 15 ++++++++-
+ gcc/config/arm/bpabi.h                 |  3 ++
+ gcc/config/arm/elf.h                   |  4 ++-
+ gcc/config/arm/netbsd-eabi.h           | 17 +++++++---
+ gcc/config/arm/netbsd-elf.h            | 46 ++++++++++++++++++--------
+ gcc/config/i386/t-netbsd64             | 15 +++++++++
+ gcc/config/netbsd.h                    |  3 ++
+ libffi/configure                       |  2 +-
+ libffi/testsuite/libffi.call/float2.c  |  2 +-
+ libgcc/config.host                     |  1 +
+ libgcc/crtstuff.c                      |  2 +-
+ libgcc/enable-execute-stack-mprotect.c |  1 -
+ libgcobol/configure.tgt                |  6 ++--
+ libgfortran/io/io.h                    |  3 --
+ libquadmath/printf/quadmath-printf.c   |  4 +--
+ libquadmath/strtod/strtod_l.c          |  8 ++---
+ zlib/zutil.h                           |  2 +-
+ 22 files changed, 108 insertions(+), 41 deletions(-)
+ create mode 100644 gcc/config/i386/t-netbsd64
+
+diff --git a/configure b/configure
+index ebc44416b..b7d08d70d 100755
+--- a/configure
++++ b/configure
+@@ -3581,14 +3581,14 @@ case ,${enable_languages}, in
+     ;;
+   *)
+     case "${target}" in
+-      aarch64-*-linux*|x86_64-*-linux*)
++      aarch64-*-linux*|x86_64-*-linux*|aarch64-*-netbsd*|x86_64-*-netbsd*|riscv64-*-netbsd*)
+         ;;
+       *-*-*)
+         unsupported_languages="$unsupported_languages cobol"
+         ;;
+     esac
+     case "${host}" in
+-      aarch64-*-linux*|x86_64-*-linux*)
++      aarch64-*-linux*|x86_64-*-linux*|aarch64-*-netbsd*|x86_64-*-netbsd*|riscv64-*-netbsd*)
+         ;;
+       *-*-*)
+         unsupported_languages="$unsupported_languages cobol"
+diff --git a/configure.ac b/configure.ac
+index 730db3c14..7569697e3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -801,14 +801,14 @@ case ,${enable_languages}, in
+     ;;
+   *)
+     case "${target}" in
+-      aarch64-*-linux*|x86_64-*-linux*)
++      aarch64-*-linux*|x86_64-*-linux*|aarch64-*-netbsd*|x86_64-*-netbsd*|riscv64-*-netbsd*)
+         ;;
+       *-*-*)
+         unsupported_languages="$unsupported_languages cobol"
+         ;;
+     esac
+     case "${host}" in
+-      aarch64-*-linux*|x86_64-*-linux*)
++      aarch64-*-linux*|x86_64-*-linux*|aarch64-*-netbsd*|x86_64-*-netbsd*|riscv64-*-netbsd*)
+         ;;
+       *-*-*)
+         unsupported_languages="$unsupported_languages cobol"
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 087aaa7be..a3bc8312c 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1992,6 +1992,7 @@ i[34567]86-*-netbsdelf*)
+ 	;;
+ x86_64-*-netbsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h ${nbsd_tm_file} i386/x86-64.h i386/netbsd64.h"
++	tmake_file="${tmake_file} i386/t-netbsd64"
+ 	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
+ 	;;
+ i[34567]86-*-openbsd*)
+diff --git a/gcc/config.host b/gcc/config.host
+index 4c1a5e991..94fd25ee4 100644
+--- a/gcc/config.host
++++ b/gcc/config.host
+@@ -99,7 +99,7 @@ case ${host} in
+ esac
+ 
+ case ${host} in
+-  aarch64*-*-freebsd* | aarch64*-*-linux* | aarch64*-*-fuchsia* |\
++  aarch64*-*-freebsd* | aarch64*-*-netbsd* | aarch64*-*-linux* | aarch64*-*-fuchsia* |\
+   aarch64*-*-darwin*)
+     case ${target} in
+       aarch64*-*-*)
+diff --git a/gcc/config/aarch64/aarch64-netbsd.h b/gcc/config/aarch64/aarch64-netbsd.h
+index 080b56e55..de2460249 100644
+--- a/gcc/config/aarch64/aarch64-netbsd.h
++++ b/gcc/config/aarch64/aarch64-netbsd.h
+@@ -20,6 +20,10 @@
+ #ifndef GCC_AARCH64_NETBSD_H
+ #define GCC_AARCH64_NETBSD_H
+ 
++/* NetBSD malloc(3) does 64, not 128 bytes. */
++#undef MALLOC_ABI_ALIGNMENT
++#define MALLOC_ABI_ALIGNMENT  64
++
+ #define TARGET_LINKER_BIG_EMULATION "aarch64nbsdb"
+ #define TARGET_LINKER_LITTLE_EMULATION "aarch64nbsd"
+ 
+diff --git a/gcc/config/arm/arm.h b/gcc/config/arm/arm.h
+index 08d3f0dae..d195d42d8 100644
+--- a/gcc/config/arm/arm.h
++++ b/gcc/config/arm/arm.h
+@@ -953,6 +953,11 @@ extern const int arm_arch_cde_coproc_bits[];
+ #define ARM_UNWIND_INFO  0
+ #endif
+ 
++/* Overriden by config/arm/netbsd-eabi.h.  */
++#ifndef ARM_DWARF_UNWIND_TABLES
++#define ARM_DWARF_UNWIND_TABLES 0
++#endif
++
+ /* Use r0 and r1 to pass exception handling information.  */
+ #define EH_RETURN_DATA_REGNO(N) (((N) < 2) ? N : INVALID_REGNUM)
+ 
+@@ -964,11 +969,19 @@ extern const int arm_arch_cde_coproc_bits[];
+ #define ARM_TARGET2_DWARF_FORMAT DW_EH_PE_pcrel
+ #endif
+ 
++#if ARM_DWARF_UNWIND_TABLES
++/* DWARF unwinding uses the normal indirect/pcrel vs absptr format
++   for 32bit platforms. */
++#define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL) \
++  (flag_pic ? (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4) \
++            : DW_EH_PE_absptr)
++#else
+ /* ttype entries (the only interesting data references used)
+    use TARGET2 relocations.  */
+ #define ASM_PREFERRED_EH_DATA_FORMAT(code, data) \
+   (((code) == 0 && (data) == 1 && ARM_UNWIND_INFO) ? ARM_TARGET2_DWARF_FORMAT \
+ 			       : DW_EH_PE_absptr)
++#endif
+ 
+ /* The native (Norcroft) Pascal compiler for the ARM passes the static chain
+    as an invisible last argument (possible since varargs don't exist in
+@@ -2512,7 +2525,7 @@ extern const char *arm_target_mode (int argc, const char **argv);
+ 
+ /* -mcpu=native handling only makes sense with compiler running on
+    an ARM chip.  */
+-#if defined(__arm__)
++#if defined(__arm__) && defined(__linux__)
+ extern const char *host_detect_local_cpu (int argc, const char **argv);
+ #define HAVE_LOCAL_CPU_DETECT
+ # define MCPU_MTUNE_NATIVE_FUNCTIONS			\
+diff --git a/gcc/config/arm/bpabi.h b/gcc/config/arm/bpabi.h
+index ce615428e..50a2bb313 100644
+--- a/gcc/config/arm/bpabi.h
++++ b/gcc/config/arm/bpabi.h
+@@ -24,6 +24,7 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ /* Use the AAPCS ABI by default.  */
++#undef ARM_DEFAULT_ABI
+ #define ARM_DEFAULT_ABI ARM_ABI_AAPCS
+ 
+ /* Assume that AAPCS ABIs should adhere to the full BPABI.  */
+@@ -107,7 +108,9 @@
+ /* The BPABI specifies the use of .{init,fini}_array.  Therefore, we
+    do not want GCC to put anything into the .{init,fini} sections.  */
+ #undef INIT_SECTION_ASM_OP
++#define INIT_SECTION_ASM_OP ""
+ #undef FINI_SECTION_ASM_OP
++#define FINI_SECTION_ASM_OP ""
+ #define INIT_ARRAY_SECTION_ASM_OP ARM_EABI_CTORS_SECTION_OP
+ #define FINI_ARRAY_SECTION_ASM_OP ARM_EABI_DTORS_SECTION_OP
+ 
+diff --git a/gcc/config/arm/elf.h b/gcc/config/arm/elf.h
+index a271fdbe9..ef082d40e 100644
+--- a/gcc/config/arm/elf.h
++++ b/gcc/config/arm/elf.h
+@@ -157,6 +157,8 @@
+ #undef L_floatdidf
+ #undef L_floatdisf
+ #undef L_floatundidf
++/* XXXMRG: don't take this out, we need it! */
++# ifndef __NetBSD__
+ #undef L_floatundisf
++# endif
+ #endif
+-
+diff --git a/gcc/config/arm/netbsd-eabi.h b/gcc/config/arm/netbsd-eabi.h
+index 30a363912..c984256ee 100644
+--- a/gcc/config/arm/netbsd-eabi.h
++++ b/gcc/config/arm/netbsd-eabi.h
+@@ -49,8 +49,8 @@
+ 
+ #undef ARM_UNWIND_INFO
+ #define ARM_UNWIND_INFO 0
+-#undef DWARF2_UNWIND_INFO
+-#define DWARF2_UNWIND_INFO 1
++#undef ARM_DWARF_UNWIND_TABLES
++#define ARM_DWARF_UNWIND_TABLES 1
+ 
+ #undef TARGET_OS_CPP_BUILTINS
+ #define TARGET_OS_CPP_BUILTINS()		\
+@@ -59,7 +59,7 @@
+       if (TARGET_AAPCS_BASED)			\
+ 	TARGET_BPABI_CPP_BUILTINS();		\
+       NETBSD_OS_CPP_BUILTINS_ELF();		\
+-      if (DWARF2_UNWIND_INFO)			\
++      if (ARM_DWARF_UNWIND_TABLES)		\
+ 	builtin_define ("__ARM_DWARF_EH__");	\
+     }						\
+   while (0)
+@@ -81,17 +81,25 @@
+ 
+ #undef SUBTARGET_EXTRA_ASM_SPEC
+ #define SUBTARGET_EXTRA_ASM_SPEC		\
+-  "%{mabi=apcs-gnu|mabi=atpcs:-meabi=gnu} "	\
++  "-matpcs %{mabi=apcs-gnu|mabi=atpcs:-meabi=gnu} "	\
+   "%{fpic|fpie:-k} "				\
+   "%{fPIC|fPIE:-k}"
+ 
++/* Default to full VFP if -mhard-float is specified.  */
++#undef SUBTARGET_ASM_FLOAT_SPEC
++#define SUBTARGET_ASM_FLOAT_SPEC	\
++  "%{mhard-float:%{!mfpu=*:-mfpu=vfp}}   \
++   %{mfloat-abi=hard:%{!mfpu=*:-mfpu=vfp}}"
++
+ #undef SUBTARGET_EXTRA_SPECS
+ #define SUBTARGET_EXTRA_SPECS						\
+   { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC },		\
++  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC }, 		\
+   { "linker_eabi_suffix",	TARGET_LINKER_EABI_SUFFIX },		\
+   { "linker_emulation",		TARGET_LINKER_EMULATION },		\
+   { "linker_big_emulation",	TARGET_LINKER_BIG_EMULATION },		\
+   { "linker_little_emulation",	TARGET_LINKER_LITTLE_EMULATION },	\
++  { "be8_link_spec",		BE8_LINK_SPEC }, 			\
+   { "target_fix_v4bx_spec",	TARGET_FIX_V4BX_SPEC },			\
+   NETBSD_SUBTARGET_EXTRA_SPECS
+ 
+@@ -102,4 +110,5 @@
+   "-X %{mbig-endian:-EB -m %(linker_big_emulation)} "		\
+   "%{mlittle-endian:-EL -m %(linker_liitle_emulation)} "	\
+   "%{!mbig-endian:%{!mlittle-endian:-m %(linker_emulation)}} "	\
++  "%(be8_link_spec) "						\
+   "%(target_fix_v4bx_spec) %(netbsd_link_spec)"
+diff --git a/gcc/config/arm/netbsd-elf.h b/gcc/config/arm/netbsd-elf.h
+index cf87b79d5..134131e89 100644
+--- a/gcc/config/arm/netbsd-elf.h
++++ b/gcc/config/arm/netbsd-elf.h
+@@ -27,9 +27,20 @@
+ 
+ /* arm.h defaults to ARM6 CPU.  */
+ 
+-/* This defaults us to little-endian.  */
+-#ifndef TARGET_ENDIAN_DEFAULT
+-#define TARGET_ENDIAN_DEFAULT 0
++/* Default EABI to armv5t so that thumb shared libraries work.
++   The ARM926EH-S core is the default for armv5te, so set
++   SUBTARGET_CPU_DEFAULT to achieve this.  */
++
++#define SUBTARGET_CPU_DEFAULT \
++	(ARM_DEFAULT_ABI != ARM_ABI_APCS && ARM_DEFAULT_ABI != ARM_ABI_ATPCS \
++	    ? TARGET_CPU_arm926ejs : TARGET_CPU_arm6)
++
++/* TARGET_BIG_ENDIAN_DEFAULT is set in
++   config.gcc for big endian configurations.  */
++#if TARGET_BIG_ENDIAN_DEFAULT
++#define TARGET_ENDIAN_DEFAULT    MASK_BIG_END
++#else
++#define TARGET_ENDIAN_DEFAULT    0
+ #endif
+ 
+ #undef MULTILIB_DEFAULTS
+@@ -56,25 +67,28 @@
+ 
+ #undef SUBTARGET_EXTRA_ASM_SPEC
+ #define SUBTARGET_EXTRA_ASM_SPEC	\
++  "-matpcs %{mabi=aapcs*:-meabi=5} "	\
+   "%{" FPIE_OR_FPIC_SPEC ":-k}"
+ 
++#undef SUBTARGET_EXTRA_SPECS
++#define SUBTARGET_EXTRA_SPECS					\
++  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC },	\
++  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC },	\
++  NETBSD_SUBTARGET_EXTRA_SPECS
++
+ /* Default to full VFP if -mfloat-abi=hard is specified.  */
+ #undef SUBTARGET_ASM_FLOAT_SPEC
+-#define SUBTARGET_ASM_FLOAT_SPEC	\
+-  "%{mfloat-abi=hard:{!mfpu=*:-mfpu=vfp}}"
+-
+-#undef SUBTARGET_EXTRA_SPECS
+-#define SUBTARGET_EXTRA_SPECS				\
+-  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC }, \
+-  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC }, \
+-  { "netbsd_link_spec",		NETBSD_LINK_SPEC_ELF },	\
+-  { "netbsd_entry_point",	NETBSD_ENTRY_POINT },
++#define SUBTARGET_ASM_FLOAT_SPEC		\
++  "%{mhard-float:%{!mfpu=*:-mfpu=vfp}}		\
++   %{mfloat-abi=hard:%{!mfpu=*:-mfpu=vfp}}"
+ 
+ #define NETBSD_ENTRY_POINT "__start"
+ 
+ #undef LINK_SPEC
+ #define LINK_SPEC \
+-  "-X %{mbig-endian:-EB} %{mlittle-endian:-EL} \
++  "-X \
++   %{mbig-endian:-EB %{-mabi=aapcs*:-m armelfb_nbsd_eabi}} \
++   %{mlittle-endian:-EL %{-mabi=aapcs*:-m armelf_nbsd_eabi}} \
+    %(netbsd_link_spec)"
+ 
+ /* Make GCC agree with <machine/ansi.h>.  */
+@@ -85,6 +99,12 @@
+ #undef PTRDIFF_TYPE
+ #define PTRDIFF_TYPE "long int"
+ 
++#undef INTPTR_TYPE
++#define INTPTR_TYPE PTRDIFF_TYPE
++
++#undef UINTPTR_TYPE
++#define UINTPTR_TYPE SIZE_TYPE
++
+ /* NetBSD does its profiling differently to the Acorn compiler. We
+    don't need a word following the mcount call; and to skip it
+    requires either an assembly stub or use of fomit-frame-pointer when
+diff --git a/gcc/config/i386/t-netbsd64 b/gcc/config/i386/t-netbsd64
+new file mode 100644
+index 000000000..4425e263a
+--- /dev/null
++++ b/gcc/config/i386/t-netbsd64
+@@ -0,0 +1,15 @@
++# NetBSD has "non-native" libraries in /usr/lib/<arch>.
++# For NetBSD/amd64 we thus have /usr/lib and /usr/lib/i386.
++
++MULTILIB_OPTIONS = m64/m32
++MULTILIB_DIRNAMES = 64 32 
++MULTILIB_OSDIRNAMES = . ../lib/i386
++
++LIBGCC = stmp-multilib
++INSTALL_LIBGCC = install-multilib
++
++# The pushl in CTOR initialization interferes with frame pointer elimination.
++# crtend*.o cannot be compiled without -fno-asynchronous-unwind-tables,
++# because then __FRAME_END__ might not be the last thing in .eh_frame
++# section.
++CRTSTUFF_T_CFLAGS += -fno-omit-frame-pointer -fno-asynchronous-unwind-tables
+diff --git a/gcc/config/netbsd.h b/gcc/config/netbsd.h
+index 685832950..e24b39c56 100644
+--- a/gcc/config/netbsd.h
++++ b/gcc/config/netbsd.h
+@@ -166,3 +166,6 @@ along with GCC; see the file COPYING3.  If not see
+   do {									\
+     netbsd_patch_builtins ();						\
+   } while(0)
++
++/* NetBSD does not have a dl library. */
++#define DL_LIBRARY ""
+diff --git a/libffi/configure b/libffi/configure
+index f82a45b13..e487cc2cc 100755
+--- a/libffi/configure
++++ b/libffi/configure
+@@ -16351,7 +16351,7 @@ case "$target" in
+ $as_echo "#define FFI_EXEC_TRAMPOLINE_TABLE 1" >>confdefs.h
+ 
+      ;;
+-     *-apple-* | *-*-freebsd* | *-*-kfreebsd* | *-*-openbsd* | *-pc-solaris* | *-linux-android*)
++     *-apple-* | *-*-freebsd* | *-*-kfreebsd* | *-*-netbsd* | *-*-openbsd* | *-pc-solaris* | *-linux-android*)
+ 
+ $as_echo "#define FFI_MMAP_EXEC_WRIT 1" >>confdefs.h
+ 
+diff --git a/libffi/testsuite/libffi.call/float2.c b/libffi/testsuite/libffi.call/float2.c
+index 57cd9e30f..7e244d628 100644
+--- a/libffi/testsuite/libffi.call/float2.c
++++ b/libffi/testsuite/libffi.call/float2.c
+@@ -47,7 +47,7 @@ int main (void)
+   /* long double support under SunOS/gcc is pretty much non-existent.
+      You'll get the odd bus error in library routines like printf() */
+ #else
+-  printf ("%Lf, %Lf, %Lf, %Lf\n", ld, ldblit(f), ld - ldblit(f), LDBL_EPSILON);
++  printf ("%Lf, %Lf, %Lf, %Lf\n", (long double)ld, (long double)ldblit(f), (long double)(ld - ldblit(f)), (long double)LDBL_EPSILON);
+ #endif
+ 
+   /* These are not always the same!! Check for a reasonable delta */
+diff --git a/libgcc/config.host b/libgcc/config.host
+index 6a88ee5a2..c13447089 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -424,6 +424,7 @@ aarch64*-*-freebsd*)
+ aarch64*-*-netbsd*)
+ 	extra_parts="$extra_parts crtfastmath.o"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
++	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-softfp t-softfp t-crtfm"
+ 	tmake_file="${tmake_file} t-dfprules"
+ 	md_unwind_def_header=aarch64/aarch64-unwind-def.h
+diff --git a/libgcc/crtstuff.c b/libgcc/crtstuff.c
+index b9767cd1e..5f03747d6 100644
+--- a/libgcc/crtstuff.c
++++ b/libgcc/crtstuff.c
+@@ -81,7 +81,7 @@ call_ ## FUNC (void)					\
+ #endif
+ 
+ #if defined(TARGET_DL_ITERATE_PHDR) && \
+-   (defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__))
++   (defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__))
+ #define BSD_DL_ITERATE_PHDR_AVAILABLE
+ #endif
+ 
+diff --git a/libgcc/enable-execute-stack-mprotect.c b/libgcc/enable-execute-stack-mprotect.c
+index 08a0d7221..7971efbf1 100644
+--- a/libgcc/enable-execute-stack-mprotect.c
++++ b/libgcc/enable-execute-stack-mprotect.c
+@@ -30,7 +30,6 @@
+ 
+ static int need_enable_exec_stack;
+ 
+-static void check_enabling (void) __attribute__ ((unused));
+ extern void __enable_execute_stack (void *);
+ 
+ #if defined __sun__ && defined __svr4__
+diff --git a/libgcobol/configure.tgt b/libgcobol/configure.tgt
+index a23925295..b62d8fcf3 100644
+--- a/libgcobol/configure.tgt
++++ b/libgcobol/configure.tgt
+@@ -26,7 +26,7 @@
+ LIBGCOBOL_SUPPORTED=no
+ 
+ case "${target}" in
+-    aarch64*-*-linux*)
++    aarch64*-*-linux* | aarch64*-*-netbsd*)
+ 	LIBGCOBOL_SUPPORTED=yes
+ 	;;
+     powerpc64le-*-linux*)
+@@ -34,12 +34,12 @@ case "${target}" in
+ 		LIBGCOBOL_SUPPORTED=yes
+ 	fi
+ 	;;
+-    riscv64-*-linux*)
++    riscv64-*-linux* | riscv64-*-netbsd*)
+ 	if test x$ac_cv_sizeof_void_p = x8; then
+ 		LIBGCOBOL_SUPPORTED=yes
+ 	fi
+ 	;;
+-    x86_64-*-linux* | i?86-*-linux* | x86_64-*-darwin*)
++    x86_64-*-linux* | i?86-*-linux* | x86_64-*-darwin* | x86_64-*-netbsd*)
+ 	if test x$ac_cv_sizeof_void_p = x8; then
+ 		LIBGCOBOL_SUPPORTED=yes
+ 	fi
+diff --git a/libgfortran/io/io.h b/libgfortran/io/io.h
+index 798e76073..f756f132b 100644
+--- a/libgfortran/io/io.h
++++ b/libgfortran/io/io.h
+@@ -65,11 +65,8 @@ extern locale_t c_locale;
+ internal_proto(c_locale);
+ #else
+ extern char* old_locale;
+-internal_proto(old_locale);
+ extern int old_locale_ctr;
+-internal_proto(old_locale_ctr);
+ extern __gthread_mutex_t old_locale_lock;
+-internal_proto(old_locale_lock);
+ #endif
+ 
+ 
+diff --git a/libquadmath/printf/quadmath-printf.c b/libquadmath/printf/quadmath-printf.c
+index b70f432cc..c4b727ce0 100644
+--- a/libquadmath/printf/quadmath-printf.c
++++ b/libquadmath/printf/quadmath-printf.c
+@@ -189,7 +189,7 @@ quadmath_snprintf (char *str, size_t size, const char *format, ...)
+       ++format;
+       info.width = va_arg (ap, int);
+     }
+-  else if (isdigit (*format))
++  else if (isdigit ((unsigned char) *format))
+     /* Constant width specification.  */
+     info.width = read_int (&format);
+ 
+@@ -206,7 +206,7 @@ quadmath_snprintf (char *str, size_t size, const char *format, ...)
+ 
+ 	  info.prec = va_arg (ap, int);
+ 	}
+-      else if (isdigit (*format))
++      else if (isdigit ((unsigned char) *format))
+ 	info.prec = read_int (&format);
+       else
+ 	/* "%.?" is treated like "%.0?".  */
+diff --git a/libquadmath/strtod/strtod_l.c b/libquadmath/strtod/strtod_l.c
+index 4e8502347..c0f46d958 100644
+--- a/libquadmath/strtod/strtod_l.c
++++ b/libquadmath/strtod/strtod_l.c
+@@ -57,10 +57,10 @@
+ # define STRING_TYPE char
+ # define CHAR_TYPE char
+ # define L_(Ch) Ch
+-# define ISSPACE(Ch) isspace (Ch)
+-# define ISDIGIT(Ch) isdigit (Ch)
+-# define ISXDIGIT(Ch) isxdigit (Ch)
+-# define TOLOWER(Ch) tolower (Ch)
++# define ISSPACE(Ch) isspace ((unsigned char) Ch)
++# define ISDIGIT(Ch) isdigit ((unsigned char) Ch)
++# define ISXDIGIT(Ch) isxdigit ((unsigned char) Ch)
++# define TOLOWER(Ch) tolower ((unsigned char) Ch)
+ # define TOLOWER_C(Ch) \
+   ({__typeof(Ch) __tlc = (Ch); \
+     (__tlc >= 'A' && __tlc <= 'Z') ? __tlc - 'A' + 'a' : __tlc; })
+diff --git a/zlib/zutil.h b/zlib/zutil.h
+index 4b596adf6..9ea8d8406 100644
+--- a/zlib/zutil.h
++++ b/zlib/zutil.h
+@@ -130,7 +130,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
+ #  endif
+ #endif
+ 
+-#if defined(MACOS) || defined(TARGET_OS_MAC)
++#if defined(MACOS)
+ #  define OS_CODE  7
+ #  ifndef Z_SOLO
+ #    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+-- 
+2.51.2
+

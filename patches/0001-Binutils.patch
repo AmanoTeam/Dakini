@@ -1,0 +1,272 @@
+From c27b0388971b01f5a10070f6433d4f12e15845aa Mon Sep 17 00:00:00 2001
+From: Kartatz <105828205+Kartatz@users.noreply.github.com>
+Date: Mon, 8 Dec 2025 23:48:52 -0300
+Subject: [PATCH] Binutils
+
+From https://github.com/NetBSD/pkgsrc/tree/trunk/devel/binutils/patches
+---
+ bfd/cache.c                          |  4 +++
+ include/safe-ctype.h                 |  3 +++
+ ld/Makefile.am                       |  6 +++++
+ ld/Makefile.in                       |  6 +++++
+ ld/configure.tgt                     |  9 +++++++
+ ld/emulparams/aarch64nbsd.sh         | 37 ++++++++++++++++++++++++++++
+ ld/emulparams/aarch64nbsdb.sh        |  2 ++
+ ld/emulparams/armelf_nbsd_eabi.sh    | 27 ++++++++++++++++++++
+ ld/emulparams/armelf_nbsd_eabihf.sh  | 20 +++++++++++++++
+ ld/emulparams/armelfb_nbsd_eabi.sh   |  2 ++
+ ld/emulparams/armelfb_nbsd_eabihf.sh |  2 ++
+ 11 files changed, 118 insertions(+)
+ create mode 100644 ld/emulparams/aarch64nbsd.sh
+ create mode 100644 ld/emulparams/aarch64nbsdb.sh
+ create mode 100644 ld/emulparams/armelf_nbsd_eabi.sh
+ create mode 100644 ld/emulparams/armelf_nbsd_eabihf.sh
+ create mode 100644 ld/emulparams/armelfb_nbsd_eabi.sh
+ create mode 100644 ld/emulparams/armelfb_nbsd_eabihf.sh
+
+diff --git a/bfd/cache.c b/bfd/cache.c
+index 3342e2d5..6b272d35 100644
+--- a/bfd/cache.c
++++ b/bfd/cache.c
+@@ -47,6 +47,10 @@ SUBSECTION
+ 
+ static FILE *_bfd_open_file_unlocked (bfd *abfd);
+ 
++#if defined(__sun) && !defined(_LP64)
++#include <limits.h>
++#endif
++
+ /* In some cases we can optimize cache operation when reopening files.
+    For instance, a flush is entirely unnecessary if the file is already
+    closed, so a flush would use CACHE_NO_OPEN.  Similarly, a seek using
+diff --git a/include/safe-ctype.h b/include/safe-ctype.h
+index 4d2a3169..c75138eb 100644
+--- a/include/safe-ctype.h
++++ b/include/safe-ctype.h
+@@ -120,6 +120,8 @@ extern const unsigned char  _sch_tolower[256];
+    So we include ctype.h here and then immediately redefine its macros.  */
+ 
+ #include <ctype.h>
++
++#ifndef __cplusplus
+ #undef isalpha
+ #define isalpha(c) do_not_use_isalpha_with_safe_ctype
+ #undef isalnum
+@@ -146,5 +148,6 @@ extern const unsigned char  _sch_tolower[256];
+ #define toupper(c) do_not_use_toupper_with_safe_ctype
+ #undef tolower
+ #define tolower(c) do_not_use_tolower_with_safe_ctype
++#endif
+ 
+ #endif /* SAFE_CTYPE_H */
+diff --git a/ld/Makefile.am b/ld/Makefile.am
+index c006448b..efc422e1 100644
+--- a/ld/Makefile.am
++++ b/ld/Makefile.am
+@@ -172,6 +172,8 @@ ALL_EMULATION_SOURCES = \
+ 	earmelf_linux_eabi.c \
+ 	earmelf_linux_fdpiceabi.c \
+ 	earmelf_nbsd.c \
++	earmelf_nbsd_eabi.c \
++	earmelf_nbsd_eabihf.c \
+ 	earmelf_phoenix.c \
+ 	earmelf_vxworks.c \
+ 	earmelfb.c \
+@@ -181,6 +183,8 @@ ALL_EMULATION_SOURCES = \
+ 	earmelfb_linux_eabi.c \
+ 	earmelfb_linux_fdpiceabi.c \
+ 	earmelfb_nbsd.c \
++	earmelfb_nbsd_eabi.c \
++	earmelfb_nbsd_eabihf.c \
+ 	earmnto.c \
+ 	earmpe.c \
+ 	eavr1.c \
+@@ -384,6 +388,8 @@ ALL_64_EMULATION_SOURCES = \
+ 	eaarch64linux32.c \
+ 	eaarch64linux32b.c \
+ 	eaarch64linuxb.c \
++	eaarch64nbsd.c \
++	eaarch64nbsdb.c \
+ 	eaarch64nto.c \
+ 	eaarch64pe.c \
+ 	earm64pe.c \
+diff --git a/ld/Makefile.in b/ld/Makefile.in
+index 0acf5f47..054e37e1 100644
+--- a/ld/Makefile.in
++++ b/ld/Makefile.in
+@@ -686,6 +686,8 @@ ALL_EMULATION_SOURCES = \
+ 	earmelf_linux_eabi.c \
+ 	earmelf_linux_fdpiceabi.c \
+ 	earmelf_nbsd.c \
++	earmelf_nbsd_eabi.c \
++	earmelf_nbsd_eabihf.c \
+ 	earmelf_phoenix.c \
+ 	earmelf_vxworks.c \
+ 	earmelfb.c \
+@@ -695,6 +697,8 @@ ALL_EMULATION_SOURCES = \
+ 	earmelfb_linux_eabi.c \
+ 	earmelfb_linux_fdpiceabi.c \
+ 	earmelfb_nbsd.c \
++	earmelfb_nbsd_eabi.c \
++	earmelfb_nbsd_eabihf.c \
+ 	earmnto.c \
+ 	earmpe.c \
+ 	eavr1.c \
+@@ -897,6 +901,8 @@ ALL_64_EMULATION_SOURCES = \
+ 	eaarch64linux32.c \
+ 	eaarch64linux32b.c \
+ 	eaarch64linuxb.c \
++	eaarch64nbsd.c \
++	eaarch64nbsdb.c \
+ 	eaarch64nto.c \
+ 	eaarch64pe.c \
+ 	earm64pe.c \
+diff --git a/ld/configure.tgt b/ld/configure.tgt
+index df31897f..6e78608d 100644
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -121,6 +121,15 @@ aarch64-*-gnu*)
+ aarch64-*-haiku*)	targ_emul=aarch64haiku
+ 			targ_extra_emuls="aarch64elf aarch64elf32 aarch64elf32b aarch64elfb armelf armelfb armelf_haiku $targ_extra_libpath"
+ 			;;
++aarch64_be-*-netbsd*)	targ_emul=aarch64nbsdb
++			targ_extra_emuls="aarch64nbsd aarch64elfb aarch64elf armelfb_nbsd_eabihf armelf_nbsd_eabihf armelfb_nbsd_eabi armelf_nbsd_eabi armelfb_nbsd armelf_nbsd armelf armelfb"
++			;;
++aarch64-*-netbsd*)	targ_emul=aarch64nbsd
++			targ_extra_emuls="aarch64nbsdb aarch64elf aarch64elfb armelf_nbsd_eabihf armelfb_nbsd_eabihf armelf_nbsd_eabi armelfb_nbsd_eabi armelf_nbsd armelfb_nbsd armelf armelfb"
++			;;
++arm*-*-netbsdelf-eabihf)	targ_emul=armelf_nbsd_eabihf
++			targ_extra_emuls="armelfb_nbsd_eabihf armelf_nbsd_eabi armelfb_nbsd_eabi armelf_nbsd armelfb_nbsd armelf armelfb"
++			;;
+ aarch64-*-nto*)		targ_emul=aarch64nto
+ 			targ_extra_emuls="aarch64elf aarch64elf32 aarch64elf32b aarch64elfb armelf armelfb"
+ 			;;
+diff --git a/ld/emulparams/aarch64nbsd.sh b/ld/emulparams/aarch64nbsd.sh
+new file mode 100644
+index 00000000..bab10f07
+--- /dev/null
++++ b/ld/emulparams/aarch64nbsd.sh
+@@ -0,0 +1,37 @@
++ARCH=aarch64
++MACHINE=
++NOP=0
++
++SCRIPT_NAME=elf
++ELFSIZE=64
++OUTPUT_FORMAT="elf64-littleaarch64"
++BIG_OUTPUT_FORMAT="elf64-bigaarch64"
++LITTLE_OUTPUT_FORMAT="elf64-littleaarch64"
++NO_REL_RELOCS=yes
++
++TEMPLATE_NAME=elf
++EXTRA_EM_FILE=aarch64elf
++
++GENERATE_SHLIB_SCRIPT=yes
++GENERATE_PIE_SCRIPT=yes
++
++MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
++COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
++SEPARATE_GOTPLT=24
++IREL_IN_PLT=
++
++TEXT_START_ADDR=0x200100000
++
++DATA_START_SYMBOLS='PROVIDE (__data_start = .);';
++
++# AArch64 does not support .s* sections.
++NO_SMALL_DATA=yes
++
++OTHER_BSS_SYMBOLS='__bss_start__ = .;'
++OTHER_BSS_END_SYMBOLS='_bss_end__ = . ; __bss_end__ = . ;'
++OTHER_END_SYMBOLS='__end__ = . ;'
++
++OTHER_SECTIONS='.note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }'
++ATTRS_SECTIONS='.ARM.attributes 0 : { KEEP (*(.ARM.attributes)) KEEP (*(.gnu.attributes)) }'
++# Ensure each PLT entry is aligned to a cache line.
++PLT=".plt          ${RELOCATING-0} : ALIGN(16) { *(.plt)${IREL_IN_PLT+ *(.iplt)} }"
+diff --git a/ld/emulparams/aarch64nbsdb.sh b/ld/emulparams/aarch64nbsdb.sh
+new file mode 100644
+index 00000000..72d973d0
+--- /dev/null
++++ b/ld/emulparams/aarch64nbsdb.sh
+@@ -0,0 +1,2 @@
++. ${srcdir}/emulparams/aarch64nbsd.sh
++OUTPUT_FORMAT="elf64-bigaarch64"
+diff --git a/ld/emulparams/armelf_nbsd_eabi.sh b/ld/emulparams/armelf_nbsd_eabi.sh
+new file mode 100644
+index 00000000..d7c57f7c
+--- /dev/null
++++ b/ld/emulparams/armelf_nbsd_eabi.sh
+@@ -0,0 +1,27 @@
++. ${srcdir}/emulparams/armelf_nbsd.sh
++
++# Use the ARM ABI-compliant exception-handling sections.
++OTHER_READONLY_SECTIONS="
++  .ARM.extab ${RELOCATING-0} : { *(.ARM.extab${RELOCATING+* .gnu.linkonce.armextab.*}) }
++  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_start = .); }
++  .ARM.exidx ${RELOCATING-0} : { *(.ARM.exidx${RELOCATING+* .gnu.linkonce.armexidx.*}) }
++  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_end = .); }"
++
++case "$target" in
++  arm*-*-netbsdelf*-*eabihf*)
++    case "$EMULATION_NAME" in
++    *armelf*eabi)
++      LIB_PATH='=/usr/lib/eabi'
++      ;;
++    esac
++    ;;
++  arm*-*-netbsdelf*-*eabi*)
++    ;;
++  aarch64*-*-netbsd* | arm*-*-netbsdelf*)
++    case "$EMULATION_NAME" in
++    *armelf*eabi)
++      LIB_PATH='=/usr/lib/eabi'
++      ;;
++    esac
++    ;;
++esac
+diff --git a/ld/emulparams/armelf_nbsd_eabihf.sh b/ld/emulparams/armelf_nbsd_eabihf.sh
+new file mode 100644
+index 00000000..072bea8f
+--- /dev/null
++++ b/ld/emulparams/armelf_nbsd_eabihf.sh
+@@ -0,0 +1,20 @@
++. ${srcdir}/emulparams/armelf_nbsd.sh
++
++# Use the ARM ABI-compliant exception-handling sections.
++OTHER_READONLY_SECTIONS="
++  .ARM.extab ${RELOCATING-0} : { *(.ARM.extab${RELOCATING+* .gnu.linkonce.armextab.*}) }
++  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_start = .); }
++  .ARM.exidx ${RELOCATING-0} : { *(.ARM.exidx${RELOCATING+* .gnu.linkonce.armexidx.*}) }
++  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_end = .); }"
++
++case "$target" in
++  arm*-*-netbsdelf*-*eabihf*)
++    ;;
++  aarch64*-*-netbsd* | arm*-*-netbsdelf*)
++    case "$EMULATION_NAME" in
++    *armelf*eabihf)
++      LIB_PATH='=/usr/lib/eabihf'
++      ;;
++    esac
++    ;;
++esac
+diff --git a/ld/emulparams/armelfb_nbsd_eabi.sh b/ld/emulparams/armelfb_nbsd_eabi.sh
+new file mode 100644
+index 00000000..58d64c1a
+--- /dev/null
++++ b/ld/emulparams/armelfb_nbsd_eabi.sh
+@@ -0,0 +1,2 @@
++. ${srcdir}/emulparams/armelf_nbsd_eabi.sh
++OUTPUT_FORMAT="elf32-bigarm"
+diff --git a/ld/emulparams/armelfb_nbsd_eabihf.sh b/ld/emulparams/armelfb_nbsd_eabihf.sh
+new file mode 100644
+index 00000000..cbad77bf
+--- /dev/null
++++ b/ld/emulparams/armelfb_nbsd_eabihf.sh
+@@ -0,0 +1,2 @@
++. ${srcdir}/emulparams/armelf_nbsd_eabihf.sh
++OUTPUT_FORMAT="elf32-bigarm"
+-- 
+2.51.2
+

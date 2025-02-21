@@ -1,0 +1,40 @@
+From 80d729c4b11f836c2b981bb34137a579f2d098f0 Mon Sep 17 00:00:00 2001
+From: John David Anglin <danglin@gcc.gnu.org>
+Date: Thu, 25 Sep 2025 10:49:39 -0400
+Subject: [PATCH] hppa: Fix asm in atomic_store_8 in sync-libfuncs.c
+
+Fix typo in the asm in atomic_store_8.  Also correct floating
+point store.
+
+Reported by Nick Hudson for netbsd.
+
+2025-09-25  John David Anglin  <danglin@gcc.gnu.org>
+
+libgcc/ChangeLog:
+
+	* config/pa/sync-libfuncs.c (atomic_store_8): Fix asm.
+---
+ libgcc/config/pa/sync-libfuncs.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/libgcc/config/pa/sync-libfuncs.c b/libgcc/config/pa/sync-libfuncs.c
+index 774c1605572b1..28d08caeb6c14 100644
+--- a/libgcc/config/pa/sync-libfuncs.c
++++ b/libgcc/config/pa/sync-libfuncs.c
+@@ -133,11 +133,11 @@ atomic_store_8 (volatile void *ptr, u64 value)
+ {
+   double tmp;
+ 
+-  asm volatile ("stws|stw} %2,-16(%%sp)\n\t"
+-		"{stws|stw} %R2,-12(%%sp)\n\t"
+-		"{fldds|fldd} -16(%%sp),%1\n\t"
+-		"{fstds|fstd} %1,0(%0)"
+-		: "=m" (ptr), "=&f" (tmp) : "r" (value): "memory");
++  asm volatile ("{stws|stw} %1,-16(%%sp)\n\t"
++		"{stws|stw} %R1,-12(%%sp)\n\t"
++		"{fldds|fldd} -16(%%sp),%0\n\t"
++		: "=f" (tmp) : "r" (value): "memory");
++  *(volatile double *)ptr = tmp;
+ }
+ #endif
+ 
