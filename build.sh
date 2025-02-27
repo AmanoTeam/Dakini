@@ -23,10 +23,13 @@ declare binutils_directory=''
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
 declare -r gcc_directory='/tmp/gcc-master'
 
-declare -r optflags='-w -Os'
-declare -r linkflags='-Wl,-s'
+declare -r max_jobs='40'
 
-declare -r max_jobs="$(($(nproc) * 17))"
+declare -r optlto="-flto=${max_jobs} -fno-fat-lto-objects"
+declare -r optfatlto="-flto=${max_jobs} -ffat-lto-objects"
+
+declare -r optflags='-w -O2'
+declare -r linkflags='-Wl,-s'
 
 declare -ra triplets=(
 	'shle-unknown-netbsdelf'
@@ -214,9 +217,9 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--enable-shared \
 	--enable-static \
-	CFLAGS="${optflags}" \
-	CXXFLAGS="${optflags}" \
-	LDFLAGS="${linkflags}"
+	CFLAGS="${optflags} ${optlto}" \
+	CXXFLAGS="${optflags} ${optlto}" \
+	LDFLAGS="${linkflags} ${optlto}"
 
 make all --jobs="${max_jobs}"
 make install
@@ -232,9 +235,9 @@ rm --force --recursive ./*
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
 	--enable-static \
-	CFLAGS="${optflags}" \
-	CXXFLAGS="${optflags}" \
-	LDFLAGS="${linkflags}"
+	CFLAGS="${optflags} ${optlto}" \
+	CXXFLAGS="${optflags} ${optlto}" \
+	LDFLAGS="${linkflags} ${optlto}"
 
 make all --jobs="${max_jobs}"
 make install
@@ -250,9 +253,9 @@ rm --force --recursive ./*
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
 	--enable-static \
-	CFLAGS="${optflags}" \
-	CXXFLAGS="${optflags}" \
-	LDFLAGS="${linkflags}"
+	CFLAGS="${optflags} ${optlto}" \
+	CXXFLAGS="${optflags} ${optlto}" \
+	LDFLAGS="${linkflags} ${optlto}"
 
 make all --jobs="${max_jobs}"
 make install
@@ -276,9 +279,9 @@ for triplet in "${triplets[@]}"; do
 		--disable-gprofng \
 		--with-static-standard-libraries \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
-		CFLAGS="${optflags}" \
-		CXXFLAGS="${optflags}" \
-		LDFLAGS="${linkflags}"
+		CFLAGS="${optflags} ${optlto}" \
+		CXXFLAGS="${optflags} ${optlto}" \
+		LDFLAGS="${linkflags} ${optlto}"
 	
 	make all --jobs
 	make install
@@ -339,7 +342,7 @@ for triplet in "${triplets[@]}"; do
 		--with-mpfr="${toolchain_directory}" \
 		--with-bugurl='https://github.com/AmanoTeam/Dakini/issues' \
 		--with-gcc-major-version-only \
-		--with-pkgversion="Dakini v0.7-${revision}" \
+		--with-pkgversion="Dakini v0.8-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
 		--enable-__cxa_atexit \
@@ -358,7 +361,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-libssp \
 		--enable-ld \
 		--enable-gold \
-		--disable-plugin \
+		--enable-plugin \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
