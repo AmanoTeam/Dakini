@@ -18,6 +18,9 @@ declare -r mpfr_directory='/tmp/mpfr-4.2.1'
 declare -r mpc_tarball='/tmp/mpc.tar.gz'
 declare -r mpc_directory='/tmp/mpc-1.3.1'
 
+declare -r isl_tarball='/tmp/isl.tar.xz'
+declare -r isl_directory='/tmp/isl-0.27'
+
 declare binutils_directory=''
 
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
@@ -28,6 +31,7 @@ declare -r max_jobs='40'
 declare -r optlto="-flto=${max_jobs} -fno-fat-lto-objects"
 declare -r optfatlto="-flto=${max_jobs} -ffat-lto-objects"
 
+declare -r pieflags='-fPIE'
 declare -r optflags='-w -O2'
 declare -r linkflags='-Wl,-s'
 
@@ -45,6 +49,15 @@ declare -ra triplets=(
 	'sparc-unknown-netbsdelf'
 	'sparc64-unknown-netbsd'
 	'powerpc-unknown-netbsd'
+)
+
+declare -ra libraries=(
+	'libstdc++'
+	'libatomic'
+	'libssp'
+	'libitm'
+	'libsupc++'
+	'libgcc'
 )
 
 function setup_binutils() {
@@ -98,6 +111,7 @@ function setup_binutils() {
 			done
 			
 			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Make-arm--netbsdelf-eabihf-a-distinct-target.patch"
+			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
 		elif [ "${binutils_version}" = '2.44' ]; then
 			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
 			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
@@ -181,6 +195,23 @@ if ! [ -f "${mpc_tarball}" ]; then
 		--file="${mpc_tarball}"
 fi
 
+if ! [ -f "${isl_tarball}" ]; then
+	curl \
+		--url 'https://libisl.sourceforge.io/isl-0.27.tar.xz' \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--silent \
+		--output "${isl_tarball}"
+	
+	tar \
+		--directory="$(dirname "${isl_directory}")" \
+		--extract \
+		--file="${isl_tarball}"
+fi
+
 if ! [ -f "${gcc_tarball}" ]; then
 	curl \
 		--url 'https://github.com/gcc-mirror/gcc/archive/refs/heads/master.tar.gz' \
@@ -260,6 +291,24 @@ rm --force --recursive ./*
 make all --jobs="${max_jobs}"
 make install
 
+[ -d "${isl_directory}/build" ] || mkdir "${isl_directory}/build"
+
+cd "${isl_directory}/build"
+rm --force --recursive ./*
+
+../configure \
+	--host="${CROSS_COMPILE_TRIPLET}" \
+	--prefix="${toolchain_directory}" \
+	--with-gmp-prefix="${toolchain_directory}" \
+	--enable-shared \
+	--enable-static \
+	CFLAGS="${pieflags} ${optflags}" \
+	CXXFLAGS="${pieflags} ${optflags}" \
+	LDFLAGS="-Wl,-rpath-link -Wl,${toolchain_directory}/lib ${linkflags}"
+
+make all --jobs
+make install
+
 for triplet in "${triplets[@]}"; do
 	
 	setup_binutils "${triplet}"
@@ -308,6 +357,10 @@ for triplet in "${triplets[@]}"; do
 	
 	cp --recursive "${sysroot_directory}" "${toolchain_directory}"
 	
+	for library in "${libraries[@]}"; do
+		rm --force "${toolchain_directory}/lib/${library}"* || true
+	done
+	
 	rm --force --recursive ./*
 	
 	[ -d "${gcc_directory}/build" ] || mkdir "${gcc_directory}/build"
@@ -340,15 +393,18 @@ for triplet in "${triplets[@]}"; do
 		--with-gmp="${toolchain_directory}" \
 		--with-mpc="${toolchain_directory}" \
 		--with-mpfr="${toolchain_directory}" \
+		--with-isl="${toolchain_directory}" \
 		--with-bugurl='https://github.com/AmanoTeam/Dakini/issues' \
 		--with-gcc-major-version-only \
 		--with-pkgversion="Dakini v0.8-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
+		--with-default-libstdcxx-abi='new' \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
+		--enable-default-pie \
 		--enable-default-ssp \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
@@ -362,6 +418,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-ld \
 		--enable-gold \
 		--enable-plugin \
+		--enable-libstdcxx-time='yes' \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
