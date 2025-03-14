@@ -36,6 +36,10 @@ declare -r optflags='-w -O2'
 declare -r linkflags='-Wl,-s'
 
 declare -ra triplets=(
+	'aarch64-unknown-netbsd'
+)
+
+declare -ra t2riplets=(
 	'shle-unknown-netbsdelf'
 	'vax-unknown-netbsdelf'
 	'i386-unknown-netbsdelf'
