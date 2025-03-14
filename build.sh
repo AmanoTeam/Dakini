@@ -18,7 +18,11 @@ declare -r mpfr_directory='/tmp/mpfr-4.2.1'
 declare -r mpc_tarball='/tmp/mpc.tar.gz'
 declare -r mpc_directory='/tmp/mpc-1.3.1'
 
-declare binutils_directory=''
+declare -r isl_tarball='/tmp/isl.tar.xz'
+declare -r isl_directory='/tmp/isl-0.27'
+
+declare -r binutils_tarball='/tmp/binutils.tar.xz'
+declare -r binutils_directory='/tmp/binutils-with-gold-2.44'
 
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
 declare -r gcc_directory='/tmp/gcc-master'
@@ -28,6 +32,7 @@ declare -r max_jobs='40'
 declare -r optlto="-flto=${max_jobs} -fno-fat-lto-objects"
 declare -r optfatlto="-flto=${max_jobs} -ffat-lto-objects"
 
+declare -r pieflags='-fPIE'
 declare -r optflags='-w -O2'
 declare -r linkflags='-Wl,-s'
 
@@ -46,67 +51,6 @@ declare -ra triplets=(
 	'sparc64-unknown-netbsd'
 	'powerpc-unknown-netbsd'
 )
-
-function setup_binutils() {
-	
-	local binutils_version=''
-	local binutils_url=''
-	local binutils_tarball=''
-	local tgt="${1}"
-	
-	declare -r tgt
-	
-	if [ "${tgt}" = 'aarch64-unknown-netbsd' ] || [ "${tgt}" = 'armv7-unknown-netbsdelf-eabihf' ] || [ "${tgt}" = 'armv6-unknown-netbsdelf-eabihf' ]; then
-		binutils_version='2.41'
-		binutils_directory="/tmp/binutils-${binutils_version}"
-		binutils_url="https://ftp.gnu.org/gnu/binutils/binutils-${binutils_version}.tar.xz"
-	else
-		binutils_version='2.44'
-		binutils_directory="/tmp/binutils-with-gold-${binutils_version}"
-		binutils_url="https://ftp.gnu.org/gnu/binutils/binutils-with-gold-${binutils_version}.tar.xz"
-	fi
-	
-	binutils_tarball="/tmp/binutils-${binutils_version}.tar.xz"
-	
-	declare -r binutils_version
-	declare -r binutils_url
-	declare -r binutils_tarball
-	
-	if ! [ -f "${binutils_tarball}" ]; then
-		curl \
-			--url "${binutils_url}" \
-			--retry '30' \
-			--retry-all-errors \
-			--retry-delay '0' \
-			--retry-max-time '0' \
-			--location \
-			--silent \
-			--output "${binutils_tarball}"
-		
-		tar \
-			--directory="$(dirname "${binutils_directory}")" \
-			--extract \
-			--file="${binutils_tarball}"
-	fi
-	
-	[ -d "${binutils_directory}/build" ] || mkdir "${binutils_directory}/build"
-	
-	if ! [ -f "${binutils_directory}/patched" ]; then
-		if [ "${binutils_version}" = '2.41' ]; then
-			for name in "${workdir}/submodules/netbsd-ports/devel/binutils/patches/patch-"*; do
-				patch --directory="${binutils_directory}" --strip='0' --input="${name}"
-			done
-			
-			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Make-arm--netbsdelf-eabihf-a-distinct-target.patch"
-		elif [ "${binutils_version}" = '2.44' ]; then
-			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
-			patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
-		fi
-		
-		touch "${binutils_directory}/patched"
-	fi
-	
-}
 
 declare build_type="${1}"
 
@@ -181,6 +125,51 @@ if ! [ -f "${mpc_tarball}" ]; then
 		--file="${mpc_tarball}"
 fi
 
+if ! [ -f "${isl_tarball}" ]; then
+	curl \
+		--url 'https://libisl.sourceforge.io/isl-0.27.tar.xz' \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--silent \
+		--output "${isl_tarball}"
+	
+	tar \
+		--directory="$(dirname "${isl_directory}")" \
+		--extract \
+		--file="${isl_tarball}"
+fi
+
+if ! [ -f "${binutils_tarball}" ]; then
+	curl \
+		--url 'https://ftp.gnu.org/gnu/binutils/binutils-with-gold-2.44.tar.xz' \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--silent \
+		--output "${binutils_tarball}"
+	
+	tar \
+		--directory="$(dirname "${binutils_directory}")" \
+		--extract \
+		--file="${binutils_tarball}"
+	
+	for name in "${workdir}/submodules/netbsd-ports/devel/binutils/patches/patch-"*; do
+		patch --directory="${binutils_directory}" --strip='0' --input="${name}"
+	done
+	
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Make-arm--netbsdelf-eabihf-a-distinct-target.patch"
+	
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
+	
+	sed --in-place 's/check_pred_blocks_finished ();//g' "${binutils_directory}/gas/config/tc-arm.c"
+fi
+
 if ! [ -f "${gcc_tarball}" ]; then
 	curl \
 		--url 'https://github.com/gcc-mirror/gcc/archive/refs/heads/master.tar.gz' \
@@ -199,6 +188,19 @@ if ! [ -f "${gcc_tarball}" ]; then
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-libfunc-support-for-hppa-unknown-netbsd.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-fenv.h-support.patch"
+	
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_config.host"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_aarch64_aarch64-netbsd.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_arm.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_bpabi.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_elf.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-eabi.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-elf.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libffi_configure"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_crtstuff.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_printf_quadmath-printf.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_strtod_strtod__l.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config.host"
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Fix-libgcc-build-on-arm.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Change-the-default-language-version-for-C-compilatio.patch"
@@ -260,10 +262,25 @@ rm --force --recursive ./*
 make all --jobs="${max_jobs}"
 make install
 
+[ -d "${isl_directory}/build" ] || mkdir "${isl_directory}/build"
+
+cd "${isl_directory}/build"
+rm --force --recursive ./*
+
+../configure \
+	--host="${CROSS_COMPILE_TRIPLET}" \
+	--prefix="${toolchain_directory}" \
+	--with-gmp-prefix="${toolchain_directory}" \
+	--enable-shared \
+	--enable-static \
+	CFLAGS="${pieflags} ${optflags} ${optlto}" \
+	CXXFLAGS="${pieflags} ${optflags} ${optlto}" \
+	LDFLAGS="-Wl,-rpath-link -Wl,${toolchain_directory}/lib ${linkflags} ${optlto}"
+
+make all --jobs
+make install
+
 for triplet in "${triplets[@]}"; do
-	
-	setup_binutils "${triplet}"
-	
 	[ -d "${binutils_directory}/build" ] || mkdir "${binutils_directory}/build"
 	
 	cd "${binutils_directory}/build"
@@ -279,6 +296,7 @@ for triplet in "${triplets[@]}"; do
 		--disable-gprofng \
 		--with-static-standard-libraries \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
+		--enable-plugins \
 		CFLAGS="${optflags} ${optlto}" \
 		CXXFLAGS="${optflags} ${optlto}" \
 		LDFLAGS="${linkflags} ${optlto}"
@@ -332,6 +350,10 @@ for triplet in "${triplets[@]}"; do
 		CXXFLAGS_FOR_TARGET+=' -include sh3/fenv.h'
 	fi
 	
+	if [ "${triplet}" = 'armv7-unknown-netbsdelf-eabihf' ] || [ "${triplet}" = 'aarch64-unknown-netbsd' ] || [ "${triplet}" = 'armv6-unknown-netbsdelf-eabihf' ]; then
+		extra_configure_flags+="--with-ld=${toolchain_directory}/bin/${triplet}-ld.gold"
+	fi
+	
 	../configure \
 		--host="${CROSS_COMPILE_TRIPLET}" \
 		--target="${triplet}" \
@@ -340,15 +362,18 @@ for triplet in "${triplets[@]}"; do
 		--with-gmp="${toolchain_directory}" \
 		--with-mpc="${toolchain_directory}" \
 		--with-mpfr="${toolchain_directory}" \
+		--with-isl="${toolchain_directory}" \
 		--with-bugurl='https://github.com/AmanoTeam/Dakini/issues' \
 		--with-gcc-major-version-only \
 		--with-pkgversion="Dakini v0.8-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
+		--with-default-libstdcxx-abi='new' \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
+		--enable-default-pie \
 		--enable-default-ssp \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
@@ -362,6 +387,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-ld \
 		--enable-gold \
 		--enable-plugin \
+		--enable-libstdcxx-time='yes' \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
