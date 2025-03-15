@@ -58,15 +58,6 @@ declare -ra t2riplets=(
 	'powerpc-unknown-netbsd'
 )
 
-declare -ra libraries=(
-	'libstdc++'
-	'libatomic'
-	'libssp'
-	'libitm'
-	'libsupc++'
-	'libgcc'
-)
-
 function setup_binutils() {
 	
 	local binutils_version=''
@@ -218,7 +209,7 @@ if ! [ -f "${isl_tarball}" ]; then
 		--extract \
 		--file="${isl_tarball}"
 	
-	patch --directory="${isl_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-isl_configure"
+	patch --directory="${isl_directory}" --strip='1' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-isl_configure"
 fi
 
 if ! [ -f "${gcc_tarball}" ]; then
@@ -377,10 +368,6 @@ for triplet in "${triplets[@]}"; do
 		--file="${sysroot_file}"
 	
 	cp --recursive "${sysroot_directory}" "${toolchain_directory}"
-	
-	for library in "${libraries[@]}"; do
-		rm --force "${toolchain_directory}/lib/${library}"* || true
-	done
 	
 	rm --force --recursive ./*
 	
