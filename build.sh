@@ -35,7 +35,7 @@ declare -r optlto=""
 declare -r optfatlto=""
 
 declare -r pieflags='-fPIE'
-declare -r optflags='-w -Os'
+declare -r optflags='-w -O2'
 declare -r linkflags='-Wl,-s'
 
 declare -ra triplets=(
@@ -205,6 +205,7 @@ if ! [ -f "${gcc_tarball}" ]; then
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_crtstuff.c"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_printf_quadmath-printf.c"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_strtod_strtod__l.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config.host"
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Fix-libgcc-build-on-arm.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Change-the-default-language-version-for-C-compilatio.patch"
