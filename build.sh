@@ -28,15 +28,18 @@ declare -r gcc_directory='/tmp/gcc-master'
 
 declare -r max_jobs='40'
 
-declare -r optlto="-flto=${max_jobs} -fno-fat-lto-objects"
-declare -r optfatlto="-flto=${max_jobs} -ffat-lto-objects"
+# declare -r optlto="-flto=${max_jobs} -fno-fat-lto-objects"
+# declare -r optfatlto="-flto=${max_jobs} -ffat-lto-objects"
+declare -r optlto=""
+declare -r optfatlto=""
 
 declare -r pieflags='-fPIE'
-declare -r optflags='-w -O2'
+declare -r optflags='-w -Os'
 declare -r linkflags='-Wl,-s'
 
 declare -ra triplets=(
 	'aarch64-unknown-netbsd'
+	'armv7-unknown-netbsdelf-eabihf'
 )
 
 declare -ra t2riplets=(
@@ -214,6 +217,8 @@ if ! [ -f "${isl_tarball}" ]; then
 		--directory="$(dirname "${isl_directory}")" \
 		--extract \
 		--file="${isl_tarball}"
+	
+	patch --directory="${isl_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-isl_configure"
 fi
 
 if ! [ -f "${gcc_tarball}" ]; then
@@ -234,6 +239,18 @@ if ! [ -f "${gcc_tarball}" ]; then
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-libfunc-support-for-hppa-unknown-netbsd.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-fenv.h-support.patch"
+	
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_config.host"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_aarch64_aarch64-netbsd.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_arm.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_bpabi.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_elf.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-eabi.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-elf.h"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libffi_configure"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_crtstuff.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_printf_quadmath-printf.c"
+	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_strtod_strtod__l.c"
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Fix-libgcc-build-on-arm.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Change-the-default-language-version-for-C-compilatio.patch"
