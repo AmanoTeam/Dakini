@@ -301,6 +301,7 @@ for triplet in "${triplets[@]}"; do
 		--disable-gprofng \
 		--with-static-standard-libraries \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
+		--enable-plugins \
 		CFLAGS="${optflags} ${optlto}" \
 		CXXFLAGS="${optflags} ${optlto}" \
 		LDFLAGS="${linkflags} ${optlto}"
@@ -369,7 +370,7 @@ for triplet in "${triplets[@]}"; do
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
 		--with-default-libstdcxx-abi='new' \
-		--with-ld='gold' \
+		--with-ld=${toolchain_directory}/bin/aarch64-unknown-netbsd-ld.gold \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
