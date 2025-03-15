@@ -35,12 +35,12 @@ declare -r optlto=""
 declare -r optfatlto=""
 
 declare -r pieflags='-fPIE'
-declare -r optflags='-w -O2'
+declare -r optflags='-w -Os'
 declare -r linkflags='-Wl,-s'
 
 declare -ra triplets=(
 	'aarch64-unknown-netbsd'
-	'armv7-unknown-netbsdelf-eabihf'
+	# 'armv7-unknown-netbsdelf-eabihf'
 )
 
 declare -ra t2riplets=(
@@ -369,6 +369,7 @@ for triplet in "${triplets[@]}"; do
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
 		--with-default-libstdcxx-abi='new' \
+		--with-ld='gold' \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
