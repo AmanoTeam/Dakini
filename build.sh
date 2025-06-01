@@ -25,7 +25,7 @@ declare -r binutils_tarball='/tmp/binutils.tar.xz'
 declare -r binutils_directory='/tmp/binutils-with-gold-2.44'
 
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
-declare -r gcc_directory='/tmp/gcc-15.1.0'
+declare -r gcc_directory='/tmp/gcc-releases-gcc-15'
 
 declare -r max_jobs='40'
 
@@ -169,7 +169,7 @@ fi
 
 if ! [ -f "${gcc_tarball}" ]; then
 	curl \
-		--url 'https://ftp.gnu.org/gnu/gcc/gcc-15.1.0/gcc-15.1.0.tar.xz' \
+		--url 'https://github.com/gcc-mirror/gcc/archive/refs/heads/releases/gcc-15.tar.gz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
