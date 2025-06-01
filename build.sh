@@ -13,7 +13,7 @@ declare -r gmp_tarball='/tmp/gmp.tar.xz'
 declare -r gmp_directory='/tmp/gmp-6.3.0'
 
 declare -r mpfr_tarball='/tmp/mpfr.tar.xz'
-declare -r mpfr_directory='/tmp/mpfr-4.2.2'
+declare -r mpfr_directory='/tmp/mpfr-4.2.1'
 
 declare -r mpc_tarball='/tmp/mpc.tar.gz'
 declare -r mpc_directory='/tmp/mpc-1.3.1'
@@ -90,7 +90,7 @@ fi
 
 if ! [ -f "${mpfr_tarball}" ]; then
 	curl \
-		--url 'https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.2.tar.xz' \
+		--url 'https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.1.tar.xz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -340,7 +340,7 @@ for triplet in "${triplets[@]}"; do
 		extra_configure_flags+='--with-float=soft '
 	fi
 	
-	declare CFLAGS_FOR_TARGET="-fpic ${optflags} ${linkflags}"
+	declare CFLAGS_FOR_TARGET="${optflags} ${linkflags}"
 	declare CXXFLAGS_FOR_TARGET="${optflags} ${linkflags}"
 	
 	if [ "${triplet}" = 'shle-unknown-netbsdelf' ]; then
