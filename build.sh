@@ -22,7 +22,7 @@ declare -r isl_tarball='/tmp/isl.tar.xz'
 declare -r isl_directory='/tmp/isl-0.27'
 
 declare -r binutils_tarball='/tmp/binutils.tar.xz'
-declare -r binutils_directory='/tmp/binutils-2.41'
+declare -r binutils_directory='/tmp/binutils-with-gold-2.44'
 
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
 declare -r gcc_directory='/tmp/gcc-releases-gcc-15'
@@ -141,7 +141,7 @@ fi
 
 if ! [ -f "${binutils_tarball}" ]; then
 	curl \
-		--url 'https://ftp.gnu.org/gnu/binutils/binutils-2.41.tar.xz' \
+		--url 'https://ftp.gnu.org/gnu/binutils/binutils-with-gold-2.44.tar.xz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -161,8 +161,8 @@ if ! [ -f "${binutils_tarball}" ]; then
 	
 	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/patches/0001-Make-arm--netbsdelf-eabihf-a-distinct-target.patch"
 	
-	# patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
-	# patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Revert-gold-Use-char16_t-char32_t-instead-of-uint16_.patch"
+	patch --directory="${binutils_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Disable-annoying-linker-warnings.patch"
 	
 	sed --in-place 's/check_pred_blocks_finished ();//g' "${binutils_directory}/gas/config/tc-arm.c"
 fi
@@ -194,7 +194,7 @@ if ! [ -f "${gcc_tarball}" ]; then
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-eabi.h"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config_arm_netbsd-elf.h"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libffi_configure"
-	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_crtstuff.c"
+	# patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libgcc_crtstuff.c"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_printf_quadmath-printf.c"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-libquadmath_strtod_strtod__l.c"
 	patch --directory="${gcc_directory}" --strip='0' --input="${workdir}/submodules/netbsd-ports/lang/gcc14/patches/patch-gcc_config.host"
