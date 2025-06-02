@@ -215,7 +215,7 @@ rm --force --recursive ./*
 	--host="${CROSS_COMPILE_TRIPLET}" \
 	--prefix="${toolchain_directory}" \
 	--enable-shared \
-	--enable-static \
+	--disable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -233,7 +233,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
-	--enable-static \
+	--disable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -251,7 +251,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
-	--enable-static \
+	--disable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -269,7 +269,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp-prefix="${toolchain_directory}" \
 	--enable-shared \
-	--enable-static \
+	--disable-static \
 	CFLAGS="${pieflags}" \
 	CXXFLAGS="${pieflags}" \
 	LDFLAGS="-Xlinker -rpath-link -Xlinker ${toolchain_directory}/lib ${linkflags}"
@@ -348,7 +348,11 @@ for triplet in "${triplets[@]}"; do
 	fi
 	
 	if [ "${triplet}" = 'armv7-unknown-netbsdelf-eabihf' ] || [ "${triplet}" = 'aarch64-unknown-netbsd' ] || [ "${triplet}" = 'armv6-unknown-netbsdelf-eabihf' ]; then
-		extra_configure_flags+="--with-ld=${toolchain_directory}/bin/${triplet}-ld.gold"
+		extra_configure_flags+=" --with-ld=${toolchain_directory}/bin/${triplet}-ld.gold"
+	fi
+	
+	if ! (( is_native )); then
+		extra_configure_flags+=" --enable-default-pie"
 	fi
 	
 	../configure \
@@ -370,6 +374,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
+		--enable-default-ssp \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
 		--enable-libstdcxx-filesystem-ts \
