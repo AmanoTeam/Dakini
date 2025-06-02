@@ -370,8 +370,6 @@ for triplet in "${triplets[@]}"; do
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
-		--enable-default-pie \
-		--enable-default-ssp \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
 		--enable-libstdcxx-filesystem-ts \
@@ -391,6 +389,8 @@ for triplet in "${triplets[@]}"; do
 		--enable-plugin \
 		--enable-libstdcxx-time='yes' \
 		--enable-cxx-flags="${linkflags}" \
+		--enable-host-pie \
+		--enable-host-shared \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
