@@ -375,11 +375,14 @@ for triplet in "${triplets[@]}"; do
 		--enable-lto \
 		--enable-shared \
 		--enable-threads='posix' \
+		--enable-cxx-threads \
 		--enable-languages='c,c++' \
 		--enable-libssp \
 		--enable-ld \
 		--enable-gold \
 		--enable-plugin \
+		--enable-libstdcxx-time='yes' \
+		--enable-cxx-flags="${linkflags}" \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
