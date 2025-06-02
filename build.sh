@@ -370,6 +370,11 @@ for triplet in "${triplets[@]}"; do
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
 		--enable-gnu-indirect-function \
+		--enable-libstdcxx-backtrace \
+		--enable-libstdcxx-filesystem-ts \
+		--enable-libstdcxx-static-eh-pool \
+		--with-libstdcxx-zoneinfo='static' \
+		--with-libstdcxx-lock-policy='auto' \
 		--enable-link-serialization='1' \
 		--enable-linker-build-id \
 		--enable-lto \
