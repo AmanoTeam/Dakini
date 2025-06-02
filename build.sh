@@ -215,7 +215,7 @@ rm --force --recursive ./*
 	--host="${CROSS_COMPILE_TRIPLET}" \
 	--prefix="${toolchain_directory}" \
 	--enable-shared \
-	--disable-static \
+	--enable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -233,7 +233,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
-	--disable-static \
+	--enable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -251,7 +251,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp="${toolchain_directory}" \
 	--enable-shared \
-	--disable-static \
+	--enable-static \
 	CFLAGS="${optflags}" \
 	CXXFLAGS="${optflags}" \
 	LDFLAGS="${linkflags}"
@@ -269,7 +269,7 @@ rm --force --recursive ./*
 	--prefix="${toolchain_directory}" \
 	--with-gmp-prefix="${toolchain_directory}" \
 	--enable-shared \
-	--disable-static \
+	--enable-static \
 	CFLAGS="${pieflags}" \
 	CXXFLAGS="${pieflags}" \
 	LDFLAGS="-Xlinker -rpath-link -Xlinker ${toolchain_directory}/lib ${linkflags}"
@@ -365,32 +365,21 @@ for triplet in "${triplets[@]}"; do
 		--with-pkgversion="Dakini v0.8-${revision}" \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
 		--with-native-system-header-dir='/include' \
-		--with-default-libstdcxx-abi='new' \
 		--enable-__cxa_atexit \
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
-		--enable-default-pie \
-		--enable-default-ssp \
 		--enable-gnu-indirect-function \
-		--enable-libstdcxx-backtrace \
-		--enable-libstdcxx-filesystem-ts \
-		--enable-libstdcxx-static-eh-pool \
-		--with-libstdcxx-zoneinfo='static' \
-		--with-libstdcxx-lock-policy='auto' \
 		--enable-link-serialization='1' \
 		--enable-linker-build-id \
 		--enable-lto \
 		--enable-shared \
 		--enable-threads='posix' \
-		--enable-cxx-threads \
 		--enable-languages='c,c++' \
 		--enable-libssp \
 		--enable-ld \
 		--enable-gold \
 		--enable-plugin \
-		--enable-libstdcxx-time='yes' \
-		--enable-cxx-flags="${linkflags}" \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
