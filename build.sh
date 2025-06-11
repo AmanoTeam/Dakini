@@ -24,6 +24,9 @@ declare -r isl_directory='/tmp/isl-0.27'
 declare -r binutils_tarball='/tmp/binutils.tar.xz'
 declare -r binutils_directory='/tmp/binutils-with-gold-2.44'
 
+declare -r zstd_tarball='/tmp/zstd.tar.gz'
+declare -r zstd_directory='/tmp/zstd-dev'
+
 declare -r gcc_tarball='/tmp/gcc.tar.gz'
 declare -r gcc_directory='/tmp/gcc-releases-gcc-15'
 
@@ -167,6 +170,23 @@ if ! [ -f "${binutils_tarball}" ]; then
 	sed --in-place 's/check_pred_blocks_finished ();//g' "${binutils_directory}/gas/config/tc-arm.c"
 fi
 
+if ! [ -f "${zstd_tarball}" ]; then
+	curl \
+		--url 'https://github.com/facebook/zstd/archive/refs/heads/dev.tar.gz' \
+		--retry '30' \
+		--retry-all-errors \
+		--retry-delay '0' \
+		--retry-max-time '0' \
+		--location \
+		--silent \
+		--output "${zstd_tarball}"
+	
+	tar \
+		--directory="$(dirname "${zstd_directory}")" \
+		--extract \
+		--file="${zstd_tarball}"
+fi
+
 if ! [ -f "${gcc_tarball}" ]; then
 	curl \
 		--url 'https://github.com/gcc-mirror/gcc/archive/refs/heads/releases/gcc-15.tar.gz' \
@@ -277,6 +297,24 @@ rm --force --recursive ./*
 make all --jobs
 make install
 
+[ -d "${zstd_directory}/.build" ] || mkdir "${zstd_directory}/.build"
+
+cd "${zstd_directory}/.build"
+rm --force --recursive ./*
+
+cmake \
+	-S "${zstd_directory}/build/cmake" \
+	-B "${PWD}" \
+	-DCMAKE_C_FLAGS="-DZDICT_QSORT=ZDICT_QSORT_MIN ${optflags}" \
+	-DCMAKE_INSTALL_PREFIX="${toolchain_directory}" \
+	-DBUILD_SHARED_LIBS=ON \
+	-DZSTD_BUILD_PROGRAMS=OFF \
+	-DZSTD_BUILD_TESTS=OFF \
+	-DZSTD_BUILD_STATIC=OFF
+
+cmake --build "${PWD}"
+cmake --install "${PWD}" --strip
+
 for triplet in "${triplets[@]}"; do
 	[ -d "${binutils_directory}/build" ] || mkdir "${binutils_directory}/build"
 	
@@ -290,12 +328,13 @@ for triplet in "${triplets[@]}"; do
 		--enable-gold \
 		--enable-ld \
 		--enable-lto \
+		--enable-plugins \
 		--disable-gprofng \
 		--with-static-standard-libraries \
 		--with-sysroot="${toolchain_directory}/${triplet}" \
-		--enable-plugins \
-		CFLAGS="${optflags}" \
-		CXXFLAGS="${optflags}" \
+		--with-zstd="${toolchain_directory}" \
+		CFLAGS="${optflags} -I${toolchain_directory}/include" \
+		CXXFLAGS="${optflags} -I${toolchain_directory}/include" \
 		LDFLAGS="${linkflags}"
 	
 	make all --jobs
@@ -351,10 +390,6 @@ for triplet in "${triplets[@]}"; do
 		extra_configure_flags+=" --with-ld=${toolchain_directory}/bin/${triplet}-ld.gold"
 	fi
 	
-	if ! (( is_native )); then
-		extra_configure_flags+=" --enable-default-pie"
-	fi
-	
 	../configure \
 		--host="${CROSS_COMPILE_TRIPLET}" \
 		--target="${triplet}" \
@@ -364,6 +399,7 @@ for triplet in "${triplets[@]}"; do
 		--with-mpc="${toolchain_directory}" \
 		--with-mpfr="${toolchain_directory}" \
 		--with-isl="${toolchain_directory}" \
+		--with-zstd="${toolchain_directory}" \
 		--with-bugurl='https://github.com/AmanoTeam/Dakini/issues' \
 		--with-gcc-major-version-only \
 		--with-pkgversion="Dakini v0.8-${revision}" \
@@ -374,6 +410,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
+		--disable-default-pie \
 		--enable-default-ssp \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
@@ -396,6 +433,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-cxx-flags="${linkflags}" \
 		--enable-host-pie \
 		--enable-host-shared \
+		--with-specs='%{!fno-plt:%{!fplt:-fno-plt}}' \
 		--disable-libsanitizer \
 		--disable-fixincludes \
 		--disable-multilib \
@@ -415,11 +453,17 @@ for triplet in "${triplets[@]}"; do
 		all --jobs="${max_jobs}"
 	make install
 	
+	cd "${toolchain_directory}/lib/bfd-plugins"
+	
+	if ! [ -f './liblto_plugin.so' ]; then
+		ln --symbolic "../../libexec/gcc/${triplet}/"*'/liblto_plugin.so' './'
+	fi
+	
 	rm --recursive "${toolchain_directory}/share"
 	
-	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1"
-	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1plus"
-	patchelf --add-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/lto1"
+	patchelf --set-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1"
+	patchelf --set-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/cc1plus"
+	patchelf --set-rpath '$ORIGIN/../../../../lib' "${toolchain_directory}/libexec/gcc/${triplet}/"*"/lto1"
 	
 	# Strip debug symbols from shared libraries
 	while read name; do
