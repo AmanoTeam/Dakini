@@ -39,7 +39,7 @@ declare -r linkflags='-Xlinker -s'
 declare -ra triplets=(
 	'x86_64-unknown-netbsd'
 	# 'armv7-unknown-netbsdelf-eabihf'
-	'armv6-unknown-netbsdelf-eabihf'
+	# 'armv6-unknown-netbsdelf-eabihf'
 	'aarch64-unknown-netbsd'
 	'shle-unknown-netbsdelf'
 	'vax-unknown-netbsdelf'
