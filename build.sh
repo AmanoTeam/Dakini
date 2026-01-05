@@ -44,14 +44,14 @@ declare -ra triplets=(
 	# 'armv7-unknown-netbsdelf-eabihf'
 	# 'armv6-unknown-netbsdelf-eabihf'
 	'i386-unknown-netbsdelf'
-	'mips-unknown-netbsd'
-	'alpha-unknown-netbsd'
-	'sparc-unknown-netbsdelf'
-	'sparc64-unknown-netbsd'
-	'powerpc-unknown-netbsd'
-	'hppa-unknown-netbsd'
-	'shle-unknown-netbsdelf'
-	'vax-unknown-netbsdelf'
+	# 'mips-unknown-netbsd'
+	# 'alpha-unknown-netbsd'
+	# 'sparc-unknown-netbsdelf'
+	# 'sparc64-unknown-netbsd'
+	# 'powerpc-unknown-netbsd'
+	# 'hppa-unknown-netbsd'
+	# 'shle-unknown-netbsdelf'
+	# 'vax-unknown-netbsdelf'
 	'x86_64-unknown-netbsd'
 	'aarch64-unknown-netbsd'
 )
@@ -583,6 +583,7 @@ for triplet in "${triplets[@]}"; do
 		--enable-clocale='gnu' \
 		--disable-default-pie \
 		--disable-default-ssp \
+		--disable-gnu-unique-object \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
 		--enable-libstdcxx-filesystem-ts \
@@ -597,11 +598,12 @@ for triplet in "${triplets[@]}"; do
 		--enable-cxx-threads \
 		--enable-languages='c,c++' \
 		--enable-plugin \
-		--enable-libstdcxx-time='yes' \
+		--enable-libstdcxx-time='rt' \
 		--enable-cxx-flags="${linkflags}" \
 		--enable-host-pie \
 		--enable-host-shared \
 		--enable-libgomp \
+		--enable-tls \
 		--with-specs='%{!Qy: -Qn}' \
 		--with-pic \
 		--disable-libssp \
