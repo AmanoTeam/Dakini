@@ -38,7 +38,7 @@ declare -r zlib_directory='/tmp/zlib-develop'
 declare -r max_jobs='30'
 
 declare -r ccflags='-w -O2'
-declare -r linkflags='-Xlinker -s'
+declare -r linkflags=''
 
 declare -ra triplets=(
 	# 'armv7-unknown-netbsdelf-eabihf'
