@@ -35,6 +35,8 @@ declare -r gcc_directory='/tmp/gcc-releases-gcc-15'
 declare -r zlib_tarball='/tmp/zlib.tar.gz'
 declare -r zlib_directory='/tmp/zlib-develop'
 
+declare -r gcc_major='15'
+
 declare -r max_jobs='30'
 
 declare -r ccflags='-w -O2'
@@ -252,7 +254,7 @@ fi
 
 if ! [ -f "${gcc_tarball}" ]; then
 	curl \
-		--url 'https://github.com/gcc-mirror/gcc/archive/refs/heads/releases/gcc-15.tar.gz' \
+		--url "https://github.com/gcc-mirror/gcc/archive/refs/heads/releases/gcc-${gcc_major}.tar.gz" \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -293,6 +295,9 @@ if ! [ -f "${gcc_tarball}" ]; then
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0007-Add-relative-RPATHs-to-GCC-host-tools.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0008-Add-ARM-and-ARM64-drivers-to-OpenBSD-host-tools.patch" || true
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0009-Fix-missing-stdint.h-include-when-compiling-host-tools-on-OpenBSD.patch"
+	
+	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-AArch64-enable-libquadmath.patch"
+	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Prevent-libstdc-from-trying-to-implement-math-stubs.patch"
 fi
 
 # Follow Debian's approach to remove hardcoded RPATHs from binaries
@@ -627,6 +632,8 @@ for triplet in "${triplets[@]}"; do
 		all --jobs="${max_jobs}"
 	make install
 	
+	cat "${workdir}/submodules/obggcc/patches/c++config.h" >> "${toolchain_directory}/${triplet}/include/c++/${gcc_major}/${triplet}/bits/c++config.h"
+	
 	rm "${toolchain_directory}/bin/${triplet}-${triplet}-"* || true
 	
 	cd "${toolchain_directory}/${triplet}/lib64" 2>/dev/null || cd "${toolchain_directory}/${triplet}/lib"
@@ -656,7 +663,12 @@ for triplet in "${triplets[@]}"; do
 done
 
 # Delete libtool files and other unnecessary files GCC installs
-rm --force --recursive "${toolchain_directory}/share"
+rm \
+	--force \
+	--recursive \
+	"${toolchain_directory}/share" \
+	"${toolchain_directory}/lib/lib"*'.a' \
+	"${toolchain_directory}/include"
 
 find \
 	"${toolchain_directory}" \
