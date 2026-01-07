@@ -544,10 +544,6 @@ for triplet in "${triplets[@]}"; do
 		extra_configure_flags+=' --enable-host-bind-now'
 	fi
 	
-	if [ "${triplet}" != 'hppa-unknown-netbsd' ]; then
-		extra_configure_flags+=' --enable-gnu-unique-object'
-	fi
-	
 	if [ "${triplet}" = 'mips-unknown-netbsd' ]; then
 		extra_configure_flags+='--with-float=soft '
 	fi
