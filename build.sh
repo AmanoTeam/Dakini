@@ -489,9 +489,6 @@ for triplet in "${triplets[@]}"; do
 		--disable-gold \
 		--enable-ld \
 		--enable-lto \
-		--enable-separate-code \
-		--enable-rosegment \
-		--enable-relro \
 		--enable-compressed-debug-sections='all' \
 		--enable-default-compressed-debug-sections-algorithm='zstd' \
 		--disable-gprofng \
