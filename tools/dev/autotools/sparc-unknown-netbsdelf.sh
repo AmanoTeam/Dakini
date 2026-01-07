@@ -1,9 +1,12 @@
 #/bin/bash
 
+kopt="${-}"
+
+set +u
 set -e
 
 if [ -z "${DAKINI_HOME}" ]; then
-	DAKINI_HOME="$(realpath "$(dirname "${0}")")/../../../../.."
+	DAKINI_HOME="$(realpath "$(( [ -n "${BASH_SOURCE}" ] && dirname "$(realpath "${BASH_SOURCE[0]}")" ) || dirname "$(realpath "${0}")")""/../../../../..")"
 fi
 
 set -u
@@ -12,6 +15,8 @@ CROSS_COMPILE_SYSTEM='netbsd'
 CROSS_COMPILE_ARCHITECTURE='sparc'
 CROSS_COMPILE_TRIPLET="${CROSS_COMPILE_ARCHITECTURE}-unknown-${CROSS_COMPILE_SYSTEM}elf"
 CROSS_COMPILE_SYSROOT="${DAKINI_HOME}/${CROSS_COMPILE_TRIPLET}"
+
+CMAKE_TOOLCHAIN_FILE="${DAKINI_HOME}/build/cmake/${CROSS_COMPILE_TRIPLET}.cmake"
 
 CC="${DAKINI_HOME}/bin/${CROSS_COMPILE_TRIPLET}-gcc"
 CXX="${DAKINI_HOME}/bin/${CROSS_COMPILE_TRIPLET}-g++"
@@ -29,6 +34,7 @@ export \
 	CROSS_COMPILE_SYSTEM \
 	CROSS_COMPILE_ARCHITECTURE \
 	CROSS_COMPILE_SYSROOT \
+	CMAKE_TOOLCHAIN_FILE \
 	CC \
 	CXX \
 	AR \
@@ -41,3 +47,6 @@ export \
 	READELF
 
 set +eu
+
+[[ "${kopt}" = *e*  ]] || set +e
+[[ "${kopt}" = *u*  ]] || set +u
