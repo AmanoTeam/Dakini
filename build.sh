@@ -43,17 +43,7 @@ declare -r ccflags='-w -O2'
 declare -r linkflags='-Xlinker -s'
 
 declare -ra triplets=(
-	# 'armv7-unknown-netbsdelf-eabihf'
-	# 'armv6-unknown-netbsdelf-eabihf'
 	'i386-unknown-netbsdelf'
-	# 'mips-unknown-netbsd'
-	# 'alpha-unknown-netbsd'
-	# 'sparc-unknown-netbsdelf'
-	# 'sparc64-unknown-netbsd'
-	# 'powerpc-unknown-netbsd'
-	# 'hppa-unknown-netbsd'
-	# 'shle-unknown-netbsdelf'
-	# 'vax-unknown-netbsdelf'
 	'x86_64-unknown-netbsd'
 	'aarch64-unknown-netbsd'
 )
@@ -102,7 +92,7 @@ declare -r \
 
 if ! [ -f "${gmp_tarball}" ]; then
 	curl \
-		--url 'https://mirrors.kernel.org/gnu/gmp/gmp-6.3.0.tar.xz' \
+		--url 'https://gnu.mirror.constant.com/gmp/gmp-6.3.0.tar.xz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -121,7 +111,7 @@ fi
 
 if ! [ -f "${mpfr_tarball}" ]; then
 	curl \
-		--url 'https://mirrors.kernel.org/gnu/mpfr/mpfr-4.2.2.tar.xz' \
+		--url 'https://gnu.mirror.constant.com/mpfr/mpfr-4.2.2.tar.xz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -140,7 +130,7 @@ fi
 
 if ! [ -f "${mpc_tarball}" ]; then
 	curl \
-		--url 'https://mirrors.kernel.org/gnu/mpc/mpc-1.3.1.tar.gz' \
+		--url 'https://gnu.mirror.constant.com/mpc/mpc-1.3.1.tar.gz' \
 		--retry '30' \
 		--retry-all-errors \
 		--retry-delay '0' \
@@ -283,8 +273,6 @@ if ! [ -f "${gcc_tarball}" ]; then
 	fi
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-GCC-15.patch"
-	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/hppa-Fix-asm-in-atomic_store_8-in-sync-libfuncs.c.patch"
-	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/patches/0001-Disable-fenv.h-support.patch"
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Turn-Wimplicit-function-declaration-back-into-an-warning.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0002-Fix-libsanitizer-build-on-older-platforms.patch"
@@ -293,8 +281,6 @@ if ! [ -f "${gcc_tarball}" ]; then
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0005-Turn-Wint-conversion-back-into-an-warning.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/gcc-15/0006-Turn-Wincompatible-pointer-types-back-into-an-warning.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0007-Add-relative-RPATHs-to-GCC-host-tools.patch"
-	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0008-Add-ARM-and-ARM64-drivers-to-OpenBSD-host-tools.patch" || true
-	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0009-Fix-missing-stdint.h-include-when-compiling-host-tools-on-OpenBSD.patch"
 	
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-AArch64-enable-libquadmath.patch"
 	patch --directory="${gcc_directory}" --strip='1' --input="${workdir}/submodules/obggcc/patches/0001-Prevent-libstdc-from-trying-to-implement-math-stubs.patch"
@@ -320,15 +306,6 @@ sed \
 	"${mpc_directory}/configure" \
 	"${mpfr_directory}/configure" \
 	"${gmp_directory}/configure"
-
-# Fix Autotools mistakenly detecting shared libraries as not supported on OpenBSD
-while read file; do
-	sed \
-		--in-place \
-		--regexp-extended \
-		's|test -f /usr/libexec/ld.so|true|g' \
-		"${file}"
-done <<< "$(find '/tmp' -type 'f' -name 'configure')"
 
 # Force GCC and binutils to prefix host tools with the target triplet even in native builds
 sed \
@@ -549,16 +526,8 @@ for triplet in "${triplets[@]}"; do
 		extra_configure_flags+=' --enable-host-bind-now'
 	fi
 	
-	if [ "${triplet}" = 'mips-unknown-netbsd' ]; then
-		extra_configure_flags+='--with-float=soft '
-	fi
-	
 	declare CFLAGS_FOR_TARGET="${ccflags} ${linkflags}"
 	declare CXXFLAGS_FOR_TARGET="${ccflags} ${linkflags}"
-	
-	if [ "${triplet}" = 'shle-unknown-netbsdelf' ]; then
-		CXXFLAGS_FOR_TARGET+=' -include sh3/fenv.h'
-	fi
 	
 	../configure \
 		--host="${CROSS_COMPILE_TRIPLET}" \
@@ -579,9 +548,6 @@ for triplet in "${triplets[@]}"; do
 		--enable-cet='auto' \
 		--enable-checking='release' \
 		--enable-clocale='gnu' \
-		--disable-default-pie \
-		--disable-default-ssp \
-		--disable-gnu-unique-object \
 		--enable-gnu-indirect-function \
 		--enable-libstdcxx-backtrace \
 		--enable-libstdcxx-filesystem-ts \
@@ -597,22 +563,28 @@ for triplet in "${triplets[@]}"; do
 		--enable-languages='c,c++' \
 		--enable-plugin \
 		--enable-libstdcxx-time='rt' \
-		--enable-cxx-flags="${linkflags}" \
 		--enable-host-pie \
 		--enable-host-shared \
 		--enable-libgomp \
 		--enable-tls \
 		--with-specs='%{!Qy: -Qn}' \
 		--with-pic \
+		--with-gnu-as \
+		--with-gnu-ld \
+		--disable-default-pie \
+		--disable-default-ssp \
+		--disable-gnu-unique-object \
 		--disable-libssp \
 		--disable-libsanitizer \
 		--disable-fixincludes \
-		--disable-multilib \
 		--disable-libstdcxx-pch \
 		--disable-werror \
 		--disable-bootstrap \
+		--disable-multilib \
+		--disable-canonical-system-headers \
+		--disable-libstdcxx-verbose \
 		--disable-nls \
-		--without-headers \
+		--without-static-standard-libraries \
 		${extra_configure_flags} \
 		CFLAGS="${ccflags}" \
 		CXXFLAGS="${ccflags}" \
@@ -644,22 +616,12 @@ for triplet in "${triplets[@]}"; do
 		cd '../lib'
 	fi
 	
-	cd "${toolchain_directory}/lib/bfd-plugins"
-	
-	if ! [ -f './liblto_plugin.so' ]; then
-		ln --symbolic "../../libexec/gcc/${triplet}/"*'/liblto_plugin.so' './'
-	fi
-	
-	# Fix some libraries not being found during linkage
-	if [ "${triplet}" = 'shle-unknown-netbsdelf' ]; then
-		cd "${toolchain_directory}/${triplet}/lib"
-		
-		for name in $(ls '!m3'); do
-			if ! [ -f "./${name}" ]; then
-				ln --symbolic './!m3/'"${name}" "./${name}"
-			fi
-		done
-	fi
+	ln \
+		--symbolic \
+		--relative \
+		--force \
+		"${toolchain_directory}/libexec/gcc/${triplet}/${gcc_major}/liblto_plugin.so" \
+		"${toolchain_directory}/lib/bfd-plugins"
 done
 
 # Delete libtool files and other unnecessary files GCC installs
@@ -668,7 +630,9 @@ rm \
 	--recursive \
 	"${toolchain_directory}/share" \
 	"${toolchain_directory}/lib/lib"*'.a' \
-	"${toolchain_directory}/include"
+	"${toolchain_directory}/include" \
+	"${toolchain_directory}/lib/pkgconfig" \
+	"${toolchain_directory}/lib/cmake"
 
 find \
 	"${toolchain_directory}" \
