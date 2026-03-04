@@ -1,6 +1,11 @@
 name: Build
 
 on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    branches:
+        - '**'
   push:
     branches:
         - '**'
@@ -116,22 +121,12 @@ jobs:
           'i686-unknown-linux-android21',
           'aarch64-unknown-linux-android',
           'riscv64-unknown-linux-android',
-          'armv5-unknown-linux-androideabi21',
           'armv7-unknown-linux-androideabi21',
-          'mips64el-unknown-linux-android',
-          'mipsel-unknown-linux-android21'
         ]
     steps:
     - uses: actions/checkout@main
       with:
         submodules: true
-    - name: Free up some space
-      run: |
-        curl 'https://raw.githubusercontent.com/AmanoTeam/gha-free-space/refs/heads/master/main.sh' -sSf | bash 
-    - name: Install required dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install build-essential || true
     - name: Restore from cache
       uses: actions/cache@main
       with:
@@ -275,12 +270,12 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: gcc-15
-          name: GCC 15.2.1
+          name: GCC 15
           files: ./*/*-unknown-*.tar.xz*
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
-          body: "* Update to GCC 15.2.1"
+          body: "* Update to GCC 15"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
