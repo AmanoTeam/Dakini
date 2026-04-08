@@ -1,5 +1,5 @@
-#ifndef _MINGW_CXX_CONFIG_H
-#define _MINGW_CXX_CONFIG_H 1
+#ifndef __DAKINI_CXX_CONFIG_H__
+#define __DAKINI_CXX_CONFIG_H__ 1
 
 #undef _GLIBCXX_HAVE_ACOSF
 #define _GLIBCXX_HAVE_ACOSF 1
@@ -150,5 +150,8 @@
 
 #undef _GLIBCXX_HAVE_FINITEL
 #define _GLIBCXX_HAVE_FINITEL 1
+
+#undef _GLIBCXX_HAVE_TLS
+#define _GLIBCXX_HAVE_TLS 1
 
 #endif

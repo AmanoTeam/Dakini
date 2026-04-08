@@ -513,7 +513,7 @@ for triplet in "${triplets[@]}"; do
 	
 	cd "$(mktemp --directory)"
 	
-	declare sysroot_url="https://github.com/AmanoTeam/netbsd-sysroot/releases/latest/download/${triplet}.tar.xz"
+	declare sysroot_url="https://github.com/AmanoTeam/Dakini/releases/download/sysroot/${triplet}.tar.xz"
 	declare sysroot_file="${PWD}/${triplet}.tar.xz"
 	declare sysroot_directory="${PWD}/${triplet}"
 	
