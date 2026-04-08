@@ -1,0 +1,35 @@
+name: System roots
+
+on:
+  push:
+    branches:
+        - '**'
+
+jobs:
+  build:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@main
+      with:
+        submodules: true
+    - name: Generate system roots
+      run: |
+        bash './sysroot.sh'
+    - name: Upload artifact
+      uses: actions/upload-artifact@main
+      with:
+        path: ./*.xz*
+    - name: Create release
+      uses: softprops/action-gh-release@master
+      with:
+        tag_name: sysroot
+        name: NetBSD sysroots
+        files: ./*.xz*
+        draft: false
+        prerelease: false
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
